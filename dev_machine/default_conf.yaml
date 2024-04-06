@@ -1,0 +1,37 @@
+Ec2Instance:
+  Type: AWS::EC2::Instance
+  Properties:        
+    ImageId: ami-0ce2cb35386fc22e9
+    InstanceInitiatedShutdownBehavior: terminate
+    InstanceType: t2.micro
+    KeyName: mac_id_rsa
+    BlockDeviceMappings:
+    - DeviceName: /dev/sda1
+      Ebs:      
+        DeleteOnTermination: true
+        Encrypted: false
+        VolumeSize: 25
+        VolumeType: gp3
+
+    NetworkInterfaces:
+    - SubnetId: subnet-03273ac6cfdbc7db0
+      AssociatePublicIpAddress: true
+      DeviceIndex: 0
+      Groups:
+      - sg-03827df3d87ad093a
+    # SecurityGroups: 
+    #   - sg-03827df3d87ad093a  
+    #SubnetId: subnet-03273ac6cfdbc7db0
+    # TagSpecifications:
+    #   - ResourceType: instance
+    #     Tags: 
+    #       - Key: name
+    #       Value: marco.maneta  
+    UserData: |-
+      #!/bin/sh
+      sudo apt-get update -y
+      sudo apt-get -y install docker.io
+      sudo service docker start
+      sudo usermod -a -G docker ubuntu
+      sudo apt-get -y install nfs-common nfs-kernel-server
+      sudo systemctl start nfs-kernel-server.service
