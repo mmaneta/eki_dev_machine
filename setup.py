@@ -26,7 +26,7 @@ config = {
     'package_dir': {"aws_cluster": "src/aws_cluster",
                     "eki_dev": "src/eki_dev"},
     
-    'package_data': {'dev_machine': ['*.yaml']},
+    'package_data': {'eki_dev': ['*.yaml']},
     #'entry_point': {'console_scripts': ['bin.dev_machine']},
     'scripts': [  
         'bin/dev_machine.py',
