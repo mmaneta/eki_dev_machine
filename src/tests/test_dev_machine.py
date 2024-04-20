@@ -12,6 +12,8 @@ from eki_dev.dev_machine import (
     list_instances,
     _get_lst_instances,
     terminate_instance,
+list_docker_context,
+inspect_docker_context
 )
 
 
@@ -116,3 +118,19 @@ def test_terminate_instance(aws_credentials, ec2_config):
     lst_inst = _get_lst_instances()
 
     assert list(lst_inst.all())[0].state["Name"] == "terminated"
+
+
+def test_list_docker_contexts(aws_credentials, ec2_config):
+    ls_ctxt = list_docker_context()
+    print(ls_ctxt)
+    assert len(ls_ctxt) > 0
+
+
+def test_inspect_context_not_found(aws_credentials, ec2_config):
+    ctx = inspect_docker_context('name_not_found')
+    assert ctx is None
+
+
+def test_inspect_context_default(aws_credentials, ec2_config):
+    ctx = inspect_docker_context('default')
+    assert ctx['Name'] == 'default'

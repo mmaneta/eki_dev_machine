@@ -12,12 +12,14 @@ with importlib_resources.as_file(ref) as data_path:
     with open(data_path, "r", encoding='utf8') as f:
         conf = yaml.load(f, Loader=yaml.FullLoader)
 
+
 def main(args):
 
     if args.command == "blank":
         d = {"InstanceType": str(args.instance_type)}
         conf["Ec2Instance"]["Properties"].update(d)
-        res = dev_m.create_ec2_instance(**conf["Ec2Instance"]["Properties"])
+        name = str(args.name)
+        res = dev_m.create_ec2_instance(name=name, **conf["Ec2Instance"]["Properties"])
 
     if args.command == "list":
         dev_m.list_instances()
@@ -34,6 +36,9 @@ if __name__ == "__main__":
 
     subparser_blank = subparsers.add_parser(
         name="blank", help="Create a blank EC2 instance"
+    )
+    subparser_blank.add_argument(
+        "--name", "-n", type=str, help="instance name"
     )
     subparser_blank.add_argument(
         "--instance_type", "-i", type=str, help="instance type", default="t2.micro"

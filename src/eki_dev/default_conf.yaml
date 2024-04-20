@@ -1,7 +1,7 @@
 Ec2Instance:
   Type: AWS::EC2::Instance
   Properties:        
-    ImageId: ami-0ce2cb35386fc22e9
+    ImageId: ami-05c969369880fa2c2
     InstanceInitiatedShutdownBehavior: terminate
     InstanceType: t2.micro
     KeyName: mac_id_rsa

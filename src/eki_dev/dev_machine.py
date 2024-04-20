@@ -5,10 +5,16 @@ from botocore.exceptions import ClientError
 import docker
 
 
-def create_docker_context(name: str,                          
-                          host: str):
+def create_docker_context(instance_name: str,
+                          host: str,
+                          port: int = 22,
+                          user_name: str = 'ubuntu'):
+    
+    host = "ssh://"+user_name+"@"+host+f":{port}"
     try:
-        docker.ContextAPI.create_context(name=name, host=host)
+        ret = docker.ContextAPI.create_context(name=instance_name,
+                                               orchestrator='docker',
+                                                host=host)
     except docker.errors.ContextAlreadyExists as err:
         print("Context name already exists")
         print(err)
@@ -16,6 +22,28 @@ def create_docker_context(name: str,
     except docker.errors.ContextException as err:
         print(err)
         raise
+    
+    return ret
+
+
+def list_docker_context() -> list:
+    try:
+        ls_ctxt = docker.ContextAPI.contexts()
+    except docker.errors.APIError as err:
+        print(err)
+        raise
+
+    return ls_ctxt
+
+
+def inspect_docker_context(name: str) -> dict:
+
+    try:
+        return docker.ContextAPI.inspect_context(name)
+    except docker.errors.ContextNotFound as err:
+        print("Context with name {} does not exist".format(name))
+        print(err)
+
 
 class AwsService:
     """
@@ -29,7 +57,7 @@ class AwsService:
         None
     """
 
-    def __init__(self, resource=None, client=None):
+    def __init__(self, session=None, resource=None, client=None):
         """
     Initializes the AwsService object with the provided resource and client.
 
@@ -40,6 +68,7 @@ class AwsService:
     Returns:
         None
         """
+        self.session = session
         self.resource = resource
         self.client = client
 
@@ -59,12 +88,14 @@ class AwsService:
             ClientError: If there is an error creating the AWS resource or client for the service.
         """
 
-        region = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
-
+        session = boto3.session.Session()
+        region = session.region_name
+        #region = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+        
         try:
             cls_res = boto3.resource(service, region_name=region)
             cls_client = boto3.client(service, region_name=region)
-            return cls(cls_res, cls_client)
+            return cls(session, cls_res, cls_client)
 
         except ClientError as err:
             print(
@@ -75,7 +106,8 @@ class AwsService:
             raise
 
 
-def create_ec2_instance(**instance_params):
+def create_ec2_instance(name: str,
+                        **instance_params):
     """
     Creates a new EC2 instance based on the provided instance parameters.
 
@@ -90,19 +122,24 @@ def create_ec2_instance(**instance_params):
     """
 
     try:
+        res = AwsService.from_service("ec2")
+
         instype = instance_params["InstanceType"]
         keyname = instance_params["KeyName"]
-        print(f"Attempting to create {instype} instance")
+        region = res.client.meta.region_name
+        print(f"Attempting to create {instype} instance in region {region}")
         print(f"Creating using {keyname} key")
-
-        res = AwsService.from_service("ec2")
 
         instance = res.resource.create_instances(
             **instance_params, MinCount=1, MaxCount=1
         )[0]
         instance.wait_until_running()
         
-        ctxt = create_docker_context()
+        host_ip = instance.public_ip_address
+
+        docker_ctxt = create_docker_context(name,
+                                            host=host_ip)
+        print(docker_ctxt)
         
     except ClientError as err:
         print(

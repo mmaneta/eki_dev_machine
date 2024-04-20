@@ -1,8 +1,8 @@
 import os
 import pytest
-import boto3
 import yaml
 import json
+import docker
 
 from moto import mock_aws
 
@@ -81,10 +81,14 @@ def test_aws_service_no_env(aws_credentials):
 
 @mock_aws
 def test_create_ec2_instance(aws_credentials, ec2_config):
-    instance = create_ec2_instance(
+    instance = create_ec2_instance(name='test',
         **json.loads(ec2_config)["Ec2Instance"]["Properties"]
     )
-    print(instance)
+    try:
+        docker.ContextAPI.remove_context(name='test')
+    except Exception as e:
+        print(e)
+
     assert instance is not None
 
 
