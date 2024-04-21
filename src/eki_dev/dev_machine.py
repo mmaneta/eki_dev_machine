@@ -26,7 +26,7 @@ def create_docker_context(instance_name: str,
     return ret
 
 
-def list_docker_context() -> list:
+def list_docker_context() -> docker.Context:
     try:
         ls_ctxt = docker.ContextAPI.contexts()
     except docker.errors.APIError as err:
@@ -43,6 +43,20 @@ def inspect_docker_context(name: str) -> dict:
     except docker.errors.ContextNotFound as err:
         print("Context with name {} does not exist".format(name))
         print(err)
+
+
+def remove_docker_context(name: str) -> docker.Context:
+
+    try:
+        docker.ContextAPI.remove_context(name)
+        print("Context with name {} removed".format(name))
+
+    except docker.errors.ContextNotFound as err:
+        print("Context with name {} does not exist".format(name))
+        print(err)
+
+    return list_docker_context()
+
 
 
 class AwsService:
