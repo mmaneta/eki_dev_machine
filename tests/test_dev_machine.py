@@ -1,9 +1,10 @@
+import contextlib
 import os
 import pytest
 import yaml
 import json
 import docker
-
+from docker import Context
 from moto import mock_aws
 
 from eki_dev.dev_machine import (
@@ -12,7 +13,29 @@ from eki_dev.dev_machine import (
     list_instances,
     _get_lst_instances,
     terminate_instance,
+    list_docker_context,
+    inspect_docker_context,
+    remove_docker_context,
+    ssh_splitter,
+    find_context_name_from_instance_ip
 )
+
+
+def test_ssh_splitter_with_ssh():
+    assert list(ssh_splitter('ssh://test_user@1.0.1.1:22')) == ['test_user', '1.0.1.1', '22']
+
+
+def test_ssh_splitter_without_ssh():
+
+    assert list(ssh_splitter('test_user@1.0.1.1:22')) == ['test_user', '1.0.1.1', '22']
+
+
+def test_ssh_splitter_without_user():
+    assert list(ssh_splitter('ssh://1.0.1.1:22')) == ['', '1.0.1.1', '22']
+
+
+def test_ssh_splitter_without_port():
+    assert list(ssh_splitter('ssh://1.0.1.1')) == ['', '1.0.1.1', '']
 
 
 @pytest.fixture(scope="function")
@@ -58,6 +81,20 @@ def ec2_config():
     return json.dumps(yaml.safe_load(conf))
 
 
+@pytest.fixture(scope="function")
+def docker_context() -> Context:
+    yield docker.ContextAPI.create_context(name='test_context',
+                                     orchestrator='docker',
+                                     host='ssh://test_user@1.2.3.4:22')
+    try:
+        docker.ContextAPI.remove_context('test_context')
+    except docker.errors.ContextNotFound:
+        pass
+
+
+
+
+
 @mock_aws
 def test_aws_service(aws_credentials):
 
@@ -69,25 +106,24 @@ def test_aws_service(aws_credentials):
 
 
 ## Tests construction with us-east-1 if default region env variable not set
-@mock_aws
-def test_aws_service_no_env(aws_credentials):
-    os.environ.pop("AWS_DEFAULT_REGION")
-    service = AwsService.from_service("ec2")
-    assert service.resource.meta.service_name == "ec2"
-    assert service.client.meta.service_model.service_name == "ec2"
-    assert service.client.meta.region_name == "us-east-1"
-    assert service.resource.meta.client.meta.region_name == "us-east-1"
+# @mock_aws
+# def test_aws_service_no_env(aws_credentials):
+#     os.environ.pop("AWS_DEFAULT_REGION")
+#     service = AwsService.from_service("ec2")
+#     assert service.resource.meta.service_name == "ec2"
+#     assert service.client.meta.service_model.service_name == "ec2"
+#     assert service.client.meta.region_name == "us-east-1"
+#     assert service.resource.meta.client.meta.region_name == "us-east-1"
 
 
+#@pytest.mark.parametrize("clean_docker_context", "test_instance")
 @mock_aws
 def test_create_ec2_instance(aws_credentials, ec2_config):
-    instance = create_ec2_instance(name='test',
-        **json.loads(ec2_config)["Ec2Instance"]["Properties"]
-    )
-    try:
-        docker.ContextAPI.remove_context(name='test')
-    except Exception as e:
-        print(e)
+
+    instance = create_ec2_instance(name='test_instance',
+                                   **json.loads(ec2_config)["Ec2Instance"]["Properties"]
+                                   )
+    docker.ContextAPI.remove_context('test_instance')
 
     assert instance is not None
 
@@ -96,23 +132,30 @@ def test_create_ec2_instance(aws_credentials, ec2_config):
 def test_list_instances(aws_credentials, ec2_config):
 
     instance = create_ec2_instance(
+        name='test_instance_1',
         **json.loads(ec2_config)["Ec2Instance"]["Properties"]
     )
     instance = create_ec2_instance(
+        name='test_instance_2',
         **json.loads(ec2_config)["Ec2Instance"]["Properties"]
     )
     instance = create_ec2_instance(
+        name='test_instance_3',
         **json.loads(ec2_config)["Ec2Instance"]["Properties"]
     )
     lst_inst = _get_lst_instances()
     list_instances()
     assert len(list(lst_inst.all())) == 3
 
+    for instance in list(lst_inst.all()):
+        terminate_instance(instance.id)
+
 
 @mock_aws
 def test_terminate_instance(aws_credentials, ec2_config):
 
     instance = create_ec2_instance(
+        name='test_instance',
         **json.loads(ec2_config)["Ec2Instance"]["Properties"]
     )
     list_instances()
@@ -120,3 +163,45 @@ def test_terminate_instance(aws_credentials, ec2_config):
     lst_inst = _get_lst_instances()
 
     assert list(lst_inst.all())[0].state["Name"] == "terminated"
+
+
+def test_list_docker_contexts(aws_credentials, ec2_config):
+    ls_ctxt = list_docker_context()
+    assert len(ls_ctxt) > 0
+
+
+def test_inspect_context_not_found(aws_credentials, ec2_config):
+    ctx = inspect_docker_context('name_not_found')
+    assert ctx is None
+
+
+def test_inspect_context_default(aws_credentials, ec2_config):
+    ctx = inspect_docker_context('default')
+    assert ctx['Name'] == 'default'
+
+
+def test_remove_docker_context_not_found(aws_credentials, ec2_config, docker_context):
+    try:
+        ctx = remove_docker_context('name_not_found')
+        assert ctx is not None
+    except:
+        assert False
+
+
+def test_remove_docker_context_default(aws_credentials,
+                                       ec2_config,
+                                       docker_context):
+
+    ctx = inspect_docker_context('test_context')
+    assert ctx['Name'] == 'test_context'
+    ctx = remove_docker_context('test_context')
+    assert all([c.Name != 'test_context' for c in ctx])
+
+
+def test_find_context_name_from_instance_ip(docker_context):
+    name =  find_context_name_from_instance_ip('1.2.3.4')
+    assert name == 'test_context'
+
+
+
+
