@@ -29,7 +29,7 @@ config = {
     'package_data': {'eki_dev': ['*.yaml']},
     #'entry_point': {'console_scripts': ['bin.dev_machine']},
     'scripts': [  
-        'bin/dev_machine.py',
+        'bin/dev_machine',
     ],
 }
 

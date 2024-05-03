@@ -10,6 +10,8 @@ def create_docker_context(instance_name: str,
                           port: int = 22,
                           user_name: str = 'ubuntu'):
     
+    print(user_name)
+    print(host)
     host = "ssh://"+user_name+"@"+host+f":{port}"
     try:
         ret = docker.ContextAPI.create_context(name=instance_name,
@@ -169,10 +171,13 @@ def create_ec2_instance(name: str,
         instance.wait_until_running()
         
         host_ip = instance.public_ip_address
+        print(host_ip)
 
-        docker_ctxt = create_docker_context(name,
-                                            host=host_ip)
-        print(docker_ctxt)
+        if host_ip is not None:
+
+            docker_ctxt = create_docker_context(name,
+                                                host=host_ip)
+            print(docker_ctxt)
         
     except ClientError as err:
         print(

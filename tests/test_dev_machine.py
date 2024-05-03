@@ -199,7 +199,7 @@ def test_remove_docker_context_default(aws_credentials,
 
 
 def test_find_context_name_from_instance_ip(docker_context):
-    name =  find_context_name_from_instance_ip('1.2.3.4')
+    name = find_context_name_from_instance_ip('1.2.3.4')
     assert name == 'test_context'
 
 
