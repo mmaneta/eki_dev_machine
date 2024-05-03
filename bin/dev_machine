@@ -38,7 +38,7 @@ if __name__ == "__main__":
         name="blank", help="Create a blank EC2 instance"
     )
     subparser_blank.add_argument(
-        "--name", "-n", type=str, help="instance name"
+        "--name", "-n", type=str, help="instance name", default="blank_machine"
     )
     subparser_blank.add_argument(
         "--instance_type", "-i", type=str, help="instance type", default="t2.micro"
