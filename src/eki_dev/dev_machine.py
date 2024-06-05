@@ -1,8 +1,19 @@
 import os
 import yaml
+import time
+import subprocess
 import boto3
 from botocore.exceptions import ClientError
 import docker
+
+
+def configure(CONFIG_DIR='.dev_machine',
+              CONFIG_FILE='dev_machine.config'):
+    HOME=os.path.expanduser("~")
+    config_path = os.path.join(HOME, CONFIG_DIR, CONFIG_FILE)
+    with open(config_path, 'w') as f:
+        input("")
+        f.writelines()
 
 
 def create_docker_context(instance_name: str,
@@ -79,6 +90,18 @@ def find_context_name_from_instance_ip(ip: str) -> str:
     return None
 
 
+def check_docker_context_does_not_exist(name: str) -> bool:
+    """Returns True if context with `name` does not exist, otherwise raise
+    docker.error.ContextAlreadyExists exception."""
+
+    for ctx in list_docker_context():
+        if ctx.name == name:
+            raise docker.errors.ContextAlreadyExists(name)
+
+    return True
+
+
+
 class AwsService:
     """
     Initializes the AwsService object with the provided resource and client.
@@ -105,6 +128,8 @@ class AwsService:
         self.session = session
         self.resource = resource
         self.client = client
+        self.region = self.session.region_name
+        self.account_id = self.session.client('sts').get_caller_identity().get('Account')
 
 
     @classmethod
@@ -124,6 +149,7 @@ class AwsService:
 
         session = boto3.session.Session()
         region = session.region_name
+        
         #region = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
         
         try:
@@ -138,6 +164,18 @@ class AwsService:
                 err.response["Error"]["Message"],
             )
             raise
+
+    def get_region(self) -> str:
+        """
+        Just what the method name says
+        """
+        return self.region
+
+    def get_account_id(self) -> str:
+        """
+        returns a string with aws account id
+        """
+        return self.account_id
 
 
 def create_ec2_instance(name: str,
@@ -175,8 +213,7 @@ def create_ec2_instance(name: str,
         print(f"public ip {host_ip} assigned. Creating Docker context now")
         docker_ctxt = create_docker_context(name,
                                                 host=host_ip)
-        print(docker_ctxt)
-        
+
     except ClientError as err:
         print(
             "Couldn't create instance with image , instance type , and key . "
@@ -191,6 +228,127 @@ def create_ec2_instance(name: str,
     else:
         _display(instance)
         return instance
+
+
+def ssh_tunnel(user: str,
+               host: str,
+               jupyter_port: int,
+               dask_port: int,
+               ):
+    tunnel_cmd = f"ssh -f -N -L {jupyter_port}:localhost:{jupyter_port} -L {dask_port}:localhost:{dask_port} {user}@{host}"
+    proc = subprocess.Popen(tunnel_cmd, shell=True, stderr=subprocess.PIPE,
+                            stdout=subprocess.PIPE, executable="/bin/bash")
+    stdout, stderr = proc.communicate()
+    if proc.returncode != 0:
+        raise ConnectionError(stderr)
+    return tunnel_cmd
+
+
+def _check_docker_installed(user: str, host: str):
+    """
+    Returns True if docker is installed. The function ssh into the host machine,
+    calls docker --version, and parses stderr
+    Args:
+        user: Username to log into host
+        host: IP address of host
+
+    Returns: True if docker is installed in host machine, False otherwise.
+
+    """
+
+    ps = subprocess.Popen(f"ssh -o StrictHostKeyChecking=accept-new {user}@{host} docker --version",
+                                           shell=True,
+                                            stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE)
+    ps.wait()
+    stdout, stderr = ps.communicate()
+    if ps.returncode == 0:
+        print(f"{str(stdout)} is running")
+        return True
+    else:
+        print("Waiting for docker...")
+        time.sleep(5)
+        return False
+
+
+def _run_jupyter_notebook(account_id: str,
+                          container_name: str,
+                          host_ip: str,
+                          jupyter_port: int,
+                          dask_port: int,
+                          user: str = "ubuntu",
+                          region: str = "us-west-1", ):
+    REGION=region
+    ACCOUNT=account_id
+    container_full_name = f"{ACCOUNT}.dkr.ecr.{REGION}.amazonaws.com/{container_name}"
+    host = host_ip
+    os.environ["DOCKER_HOST"] = f"ssh://{user}@{host}"
+
+    login_cmd = (f"docker login --username AWS -p $(aws ecr get-login-password"
+                 f" --region {REGION}) {ACCOUNT}.dkr.ecr.{REGION}.amazonaws.com ; ")
+    pull_cmd = f"docker pull {container_full_name}"
+    log_pull_cmd = login_cmd + pull_cmd
+
+    while not _check_docker_installed(user, host):
+        pass
+
+    proc = subprocess.Popen(log_pull_cmd, shell=True, stdin=None, executable="/bin/bash")
+    proc.wait()
+
+    run_cmd = (f"docker run --rm -v /home/ubuntu/efs:/home/eki/efs "
+               f"-p{jupyter_port}:{jupyter_port} -p{dask_port}:{dask_port}"
+               f" -u 0 {container_full_name} jupyter-lab --port {jupyter_port}"
+               f" --no-browser --ip=0.0.0.0 --allow-root")
+    proc = subprocess.Popen(run_cmd, shell=True, stdin=None, executable="/bin/bash")
+   # proc.wait()
+
+
+def create_instance_pull_start_server(name: str,
+                                      jupyter_port: int = 8888,
+                                      dask_port: int = 8889,
+                                      container: str = "eki:dev",
+                                      **instance_params):
+
+    try:
+        check_docker_context_does_not_exist(name)
+    except docker.errors.ContextAlreadyExists as e:
+        print(f"Context {name} already exists")
+        return -1
+
+    instance_params["IamInstanceProfile"] = {"Name": "AccessECR"}
+
+
+    try:
+        i = create_ec2_instance(name=name, **instance_params)
+    except:
+        raise
+
+    print("PROVISIONING INSTANCE WITH REQUIRED SERVICES...")
+    aws_account = AwsService.from_service('ec2').get_account_id()
+    aws_region = AwsService.from_service('ec2').get_region()
+    user = "ubuntu"
+    host = i.public_ip_address
+    _run_jupyter_notebook(aws_account,
+                          container_name=container,
+                          host_ip=host,
+                          jupyter_port=jupyter_port,
+                          dask_port=dask_port,
+                          region=aws_region)
+
+    del os.environ["DOCKER_HOST"]
+
+    try:
+        tunnel_cmd = ssh_tunnel(user=user,
+                   host=host,
+                   jupyter_port=jupyter_port,
+                   dask_port=dask_port)
+    except ConnectionError as e:
+        print(e)
+        pass
+
+    print(f"To reconnect to jupyter server use the following command:\n")
+    print(f"{tunnel_cmd}".center(40))
+    return i
 
 
 def list_instances(indent=1):

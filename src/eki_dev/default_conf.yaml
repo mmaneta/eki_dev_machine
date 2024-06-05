@@ -33,5 +33,8 @@ Ec2Instance:
       sudo apt-get -y install docker.io
       sudo service docker start
       sudo usermod -a -G docker ubuntu
-      sudo apt-get -y install nfs-common nfs-kernel-server
+      sudo apt-get -y install nfs-common nfs-kernel-server awscli
       sudo systemctl start nfs-kernel-server.service
+      sudo mkdir /home/ubuntu/efs
+      sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport fs-034c06bfe2c81394b.efs.us-west-1.amazonaws.com:/ /home/ubuntu/efs
+
