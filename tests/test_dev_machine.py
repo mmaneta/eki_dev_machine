@@ -23,8 +23,12 @@ from eki_dev.dev_machine import (
     _check_docker_installed,
     create_instance_pull_start_server,
     _run_jupyter_notebook,
-    ssh_tunnel
+    ssh_tunnel,
+    login_into_ecr
 )
+
+def test_login_into_ecr():
+    login_into_ecr()
 
 
 def test_ssh_splitter_with_ssh():
@@ -128,17 +132,6 @@ def test_aws_service(aws_credentials):
     assert service.get_region() == "us-west-2"
 
 
-## Tests construction with us-east-1 if default region env variable not set
-# @mock_aws
-# def test_aws_service_no_env(aws_credentials):
-#     os.environ.pop("AWS_DEFAULT_REGION")
-#     service = AwsService.from_service("ec2")
-#     assert service.resource.meta.service_name == "ec2"
-#     assert service.client.meta.service_model.service_name == "ec2"
-#     assert service.client.meta.region_name == "us-east-1"
-#     assert service.resource.meta.client.meta.region_name == "us-east-1"
-
-
 # @pytest.mark.parametrize("clean_docker_context", "test_instance")
 @mock_aws
 def test_create_ec2_instance(aws_credentials, ec2_config):
@@ -204,8 +197,7 @@ def test__run_jupyter_notebook(aws_credentials, ec2_config, mocker):
 
 
 def test_ssh_tunnel_connection_error():
-   # m = mocker.patch('subprocess.Popen')
-   # m.return_value.communicate.side_effect
+
     with pytest.raises(ConnectionError) as e:
         ssh_tunnel(user='test_user',
                host='10.10.10.10',
@@ -214,6 +206,7 @@ def test_ssh_tunnel_connection_error():
 
     assert "Connection refused" in str(e.value.args[0])
 
+
 @mock_aws()
 def test_create_instance_pull_start_server(aws_credentials, ec2_config, mocker):
 
@@ -221,6 +214,10 @@ def test_create_instance_pull_start_server(aws_credentials, ec2_config, mocker):
     m = mocker.patch('subprocess.Popen')
     m.return_value.communicate.return_value = ("docker v23.test", "127")
     m.return_value.returncode = 0
+
+    mrun = mocker.patch('subprocess.run')
+    mrun.return_value.returncode = 0
+
     iam = boto3.client("iam")
     conf = json.loads(ec2_config)["Ec2Instance"]["Properties"]
     instance_prof = iam.create_instance_profile(InstanceProfileName="AccessECR")

@@ -1,11 +1,28 @@
 import os
-import yaml
 import time
 import subprocess
 import boto3
 from botocore.exceptions import ClientError
 import docker
+from rich.progress import Progress
 
+
+# Show task progress (red for download, green for extract)
+def show_progress(line, progress):
+    tasks = {}
+
+    if line['status'] == 'Downloading':
+        id = f'[red][Download {line["id"]}]'
+    elif line['status'] == 'Extracting':
+        id = f'[green][Extract  {line["id"]}]'
+    else:
+        # skip other statuses
+        return
+
+    if id not in tasks.keys():
+        tasks[id] = progress.add_task(f"{id}", total=line['progressDetail']['total'])
+    else:
+        progress.update(tasks[id], completed=line['progressDetail']['current'])
 
 def configure(CONFIG_DIR='.dev_machine',
               CONFIG_FILE='dev_machine.config'):
@@ -130,6 +147,8 @@ class AwsService:
         self.client = client
         self.region = self.session.region_name
         self.account_id = self.session.client('sts').get_caller_identity().get('Account')
+        ecr_auth = self.session.client('ecr').get_authorization_token()
+        self.ecr_pass = ecr_auth.get("authorizationData")[0].get('authorizationToken')
 
 
     @classmethod
@@ -176,6 +195,10 @@ class AwsService:
         returns a string with aws account id
         """
         return self.account_id
+
+    def get_ecr_authorization(self) -> str:
+        """returns an authorization token for ECR"""
+        return self.ecr_pass
 
 
 def create_ec2_instance(name: str,
@@ -271,6 +294,12 @@ def _check_docker_installed(user: str, host: str):
         return False
 
 
+def login_into_ecr(registry):
+    password = AwsService.from_service('ec2').get_ecr_authorization()
+    docker_client = docker.from_env()
+    docker_client.login(username='AWS', password=password, reauth=True)
+
+
 def _run_jupyter_notebook(account_id: str,
                           container_name: str,
                           host_ip: str,
@@ -284,23 +313,50 @@ def _run_jupyter_notebook(account_id: str,
     host = host_ip
     os.environ["DOCKER_HOST"] = f"ssh://{user}@{host}"
 
-    login_cmd = (f"docker login --username AWS -p $(aws ecr get-login-password"
-                 f" --region {REGION}) {ACCOUNT}.dkr.ecr.{REGION}.amazonaws.com ; ")
-    pull_cmd = f"docker pull {container_full_name}"
-    log_pull_cmd = login_cmd + pull_cmd
-
     while not _check_docker_installed(user, host):
         pass
 
-    proc = subprocess.Popen(log_pull_cmd, shell=True, stdin=None, executable="/bin/bash")
-    proc.wait()
+    docker_client = docker.from_env()
+    # res = docker_client.login(username = "AWS",
+    #                     password = f"$(aws ecr get-login-password --region {REGION})",
+    #                     registry = f"{ACCOUNT}.dkr.ecr.{REGION}.amazonaws.com")
+    #print(res)
+    login_cmd = (f"docker login --username AWS "
+                 f"-p $(aws ecr get-login-password --region {REGION}) {ACCOUNT}.dkr.ecr.{REGION}.amazonaws.com")
+    proc = subprocess.run(login_cmd, shell=True)
 
-    run_cmd = (f"docker run --rm -v /home/ubuntu/efs:/home/eki/efs "
-               f"-p{jupyter_port}:{jupyter_port} -p{dask_port}:{dask_port}"
-               f" -u 0 {container_full_name} jupyter-lab --port {jupyter_port}"
-               f" --no-browser --ip=0.0.0.0 --allow-root")
-    proc = subprocess.Popen(run_cmd, shell=True, stdin=None, executable="/bin/bash")
-   # proc.wait()
+
+    # pull_cmd = f"docker pull {container_full_name}"
+    # for _ in range(5):
+    #     print(f"Attempting to pull from registry...")
+    #     proc = subprocess.run(pull_cmd.split())
+    #     if proc.returncode == 0:
+    #         break
+
+    # run_cmd = (f"docker run --rm -v /home/ubuntu/efs:/home/eki/efs "
+    #            f"-p{jupyter_port}:{jupyter_port} -p{dask_port}:{dask_port}"
+    #            f" -u 0 {container_full_name} jupyter-lab --port {jupyter_port}"
+    #            f" --no-browser --ip=0.0.0.0 --allow-root")
+    # for _ in range(5):
+    #     print(f"Attempting to start jupyter lab...")
+    #     proc = subprocess.run(run_cmd, shell=True)
+    #     if proc.returncode == 0:
+    #         break
+
+    with Progress() as progress:
+
+        resp = docker_client.api.pull(repository=f"{container_full_name}"[:-4], tag="dev", stream=True, decode=True)
+        for line in resp:
+            show_progress(line, progress)
+
+
+    docker_client.api.containers.exec(image=f"{container_full_name}",
+                                 command=f"jupyter-lab --port {jupyter_port} --no-browser --ip=0.0.0.0 --allow-root",
+                                 auto_remove=True,
+                                 detach=True,
+                                 volumes=['/home/ubuntu/efs:/home/eki/efs'],
+                                 ports={jupyter_port: jupyter_port, dask_port: dask_port},
+                                 )
 
 
 def create_instance_pull_start_server(name: str,
@@ -347,7 +403,7 @@ def create_instance_pull_start_server(name: str,
         pass
 
     print(f"To reconnect to jupyter server use the following command:\n")
-    print(f"{tunnel_cmd}".center(40))
+    print(f"\t\t {tunnel_cmd}")
     return i
 
 
