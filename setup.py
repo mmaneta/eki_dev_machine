@@ -17,10 +17,10 @@ config = {
     'download_url': '',
     'include_package_data': True,
     'install_requires': [ # 
-        'pyyaml', 'boto3', 'docker'
+        'pyyaml', 'botocore', 'boto3', 'docker-py', 'rich'
     ],
     'extras_require': {
-        'test': ['pytest', 'moto', 'black']
+        'test': ['pytest', 'pytest-mock', 'moto', 'black']
     },  
     'packages': find_packages(where='src'),
     'package_dir': {"aws_cluster": "src/aws_cluster",
