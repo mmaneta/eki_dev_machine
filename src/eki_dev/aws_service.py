@@ -59,8 +59,8 @@ class AwsService:
             cls_res = boto3.resource(service, region_name=region)
         except ResourceNotExistsError:
             cls_res = None
-            print("Resource interface not available for service '{}'.".format(service))
-            print("Attempting Client interface...")
+            # print("Resource interface not available for service '{}'.".format(service))
+            # print("Attempting Client interface...")
         try:
             cls_client = boto3.client(service, region_name=region)
 

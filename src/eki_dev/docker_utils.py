@@ -6,12 +6,10 @@ from eki_dev.aws_service import AwsService
 import time
 import subprocess
 import docker
-from logging import getLogger
+import logging
 
-logger = getLogger(__name__)
-
-
-
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.WARNING)
 
 
 def login_into_ecr(registry):
@@ -22,7 +20,17 @@ def login_into_ecr(registry):
     docker_client = docker.from_env()
     logger.info("Logging into {}".format(registry))
     registry = registry.replace("https://", "")
-    docker_client.login(username='AWS', password=password, registry=registry, reauth=True)
+    for i in range(3):
+        logger.info("{} attempt to log in".format(i+1))
+        try:
+            ret = docker_client.login(username='AWS', password=password, registry=registry, reauth=True)
+            if ret['Status'] == 'Login Succeeded':
+                logger.info("Login succeeded")
+                break
+            time.sleep(1)
+        except docker.errors.APIError as e:
+            logger.error(e)
+
     return docker_client
 
 

@@ -3,8 +3,7 @@ import subprocess
 
 
 # Show task progress (red for download, green for extract)
-def show_progress(line, progress):
-    tasks = {}
+def show_progress(line, progress, tasks):
 
     if line['status'] == 'Downloading':
         id_ = f'[red][Download {line["id"]}]'
@@ -16,8 +15,8 @@ def show_progress(line, progress):
 
     if id_ not in tasks.keys():
         tasks[id_] = progress.add_task(f"{id_}", total=line['progressDetail']['total'])
-    else:
-        progress.update(tasks[id_], completed=line['progressDetail']['current'])
+    #else:
+    progress.update(tasks[id_], completed=line['progressDetail']['current'])
 
 # def configure(CONFIG_DIR='.dev_machine',
 #               CONFIG_FILE='dev_machine.config'):

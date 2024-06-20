@@ -1,5 +1,4 @@
 import os
-import subprocess
 from botocore.exceptions import ClientError
 import docker
 
@@ -93,47 +92,26 @@ def _run_jupyter_notebook(account_id: str,
         pass
 
     docker_client = login_into_ecr(registry)
-    #docker_client = docker.from_env()
-    # res = docker_client.login(username = "AWS",
-    #                     password = f"$(aws ecr get-login-password --region {REGION})",
-    #                     registry = f"{ACCOUNT}.dkr.ecr.{REGION}.amazonaws.com")
-    #print(res)
-    # login_cmd = (f"docker login --username AWS "
-    #              f"-p $(aws ecr get-login-password --region {REGION}) {ACCOUNT}.dkr.ecr.{REGION}.amazonaws.com")
-    # proc = subprocess.run(login_cmd, shell=True)
 
-
-    # pull_cmd = f"docker pull {container_full_name}"
-    # for _ in range(5):
-    #     print(f"Attempting to pull from registry...")
-    #     proc = subprocess.run(pull_cmd.split())
-    #     if proc.returncode == 0:
-    #         break
-
-    # run_cmd = (f"docker run --rm -v /home/ubuntu/efs:/home/eki/efs "
-    #            f"-p{jupyter_port}:{jupyter_port} -p{dask_port}:{dask_port}"
-    #            f" -u 0 {container_full_name} jupyter-lab --port {jupyter_port}"
-    #            f" --no-browser --ip=0.0.0.0 --allow-root")
-    # for _ in range(5):
-    #     print(f"Attempting to start jupyter lab...")
-    #     proc = subprocess.run(run_cmd, shell=True)
-    #     if proc.returncode == 0:
-    #         break
-
-    with Progress() as progress:
+    tasks = {}
+    with Progress(refresh_per_second=100) as progress:
 
         resp = docker_client.api.pull(repository=f"{container_full_name}"[:-4], tag="dev", stream=True, decode=True)
         for line in resp:
-            show_progress(line, progress)
+            show_progress(line, progress, tasks)
 
-
-    docker_client.api.containers.exec(image=f"{container_full_name}",
+    print("Running container with Jupyter notebook...")
+    c = docker_client.containers.run(image=f"{container_full_name}",
                                  command=f"jupyter-lab --port {jupyter_port} --no-browser --ip=0.0.0.0 --allow-root",
-                                 auto_remove=True,
+                                 user=0,
+                                 #auto_remove=True,
                                  detach=True,
                                  volumes=['/home/ubuntu/efs:/home/eki/efs'],
                                  ports={jupyter_port: jupyter_port, dask_port: dask_port},
                                  )
+
+    for line in c.logs(stream=True):
+        print(line.strip().decode('utf-8'))
 
 
 def create_instance_pull_start_server(name: str,
@@ -191,8 +169,6 @@ def create_instance_pull_start_server(name: str,
 #     for name, ip in lst_ip_ctxt:
 #         if ip not in lst_instances:
 #             remove_docker_context(name)
-
-
 
 
 def list_instances(indent=1):
