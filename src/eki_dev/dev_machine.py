@@ -1,4 +1,6 @@
 import os
+import time
+
 from botocore.exceptions import ClientError
 import docker
 
@@ -13,12 +15,13 @@ from eki_dev.docker_utils import (
     find_context_name_from_instance_ip,
     check_docker_context_does_not_exist,
     login_into_ecr,
-    list_host_ip_for_all_contexts
 )
 
 from eki_dev.utils import (
     show_progress,
-    ssh_tunnel
+    ssh_tunnel,
+    register_instance,
+    deregister_instance
 )
 
 
@@ -36,6 +39,12 @@ def create_ec2_instance(name: str,
     Raises:
         ClientError: If instance creation fails.
     """
+
+    try:
+        check_docker_context_does_not_exist(name)
+    except docker.errors.ContextAlreadyExists as e:
+        print(f"Context {name} already exists")
+        raise
 
     try:
         res = AwsService.from_service("ec2")
@@ -71,6 +80,7 @@ def create_ec2_instance(name: str,
         raise
     else:
         _display(instance)
+        register_instance(name, host_ip)
         return instance
 
 
@@ -94,7 +104,7 @@ def _run_jupyter_notebook(account_id: str,
     docker_client = login_into_ecr(registry)
 
     tasks = {}
-    with Progress(refresh_per_second=100) as progress:
+    with Progress(refresh_per_second=500) as progress:
 
         resp = docker_client.api.pull(repository=f"{container_full_name}"[:-4], tag="dev", stream=True, decode=True)
         for line in resp:
@@ -110,8 +120,10 @@ def _run_jupyter_notebook(account_id: str,
                                  ports={jupyter_port: jupyter_port, dask_port: dask_port},
                                  )
 
-    for line in c.logs(stream=True):
+    for line in c.logs(stream=True, follow=True):
         print(line.strip().decode('utf-8'))
+        if len(line) == 0:
+            break
 
 
 def create_instance_pull_start_server(name: str,
@@ -124,14 +136,15 @@ def create_instance_pull_start_server(name: str,
         check_docker_context_does_not_exist(name)
     except docker.errors.ContextAlreadyExists as e:
         print(f"Context {name} already exists")
-        return -1
+        raise
 
     instance_params["IamInstanceProfile"] = {"Name": "AccessECR"}
 
 
     try:
         i = create_ec2_instance(name=name, **instance_params)
-    except:
+    except Exception as e:
+        print(e)
         raise
 
     print("PROVISIONING INSTANCE WITH REQUIRED SERVICES...")
@@ -162,13 +175,32 @@ def create_instance_pull_start_server(name: str,
     return i
 
 
-# def clean_dangling_contexts():
-#
-#     lst_ip_ctxt = list_host_ip_for_all_contexts()
-#     lst_instances = list_instances()
-#     for name, ip in lst_ip_ctxt:
-#         if ip not in lst_instances:
-#             remove_docker_context(name)
+def clean_dangling_contexts(CONFIG_DIR='.dev_machine') -> []:
+
+    print("CLEANING DANGLING CONTEXTS...")
+    lst_cleaned_contexts = []
+    lst_instances = _get_lst_instances()
+    lst_ips = []
+    for instance in lst_instances.iterator():
+        lst_ips.append(instance.public_ip_address)
+
+    HOME = os.path.expanduser("~")
+    for root, dirs, files in os.walk(os.path.join(HOME, CONFIG_DIR)):
+        for file in files:
+            name, ip = file.split("@")
+            if ip not in lst_ips:
+                try:
+                    remove_docker_context(name)
+                except Exception as e:
+                    pass
+
+                try:
+                    os.remove(os.path.join(root, file))
+                except Exception as e:
+                    pass
+                lst_cleaned_contexts.append(name)
+
+    return lst_cleaned_contexts
 
 
 def list_instances(indent=1):
@@ -264,13 +296,13 @@ def terminate_instance(instance_id: str = None) -> None:
         ctx_name = find_context_name_from_instance_ip(ip)
         instance.terminate()
 
-
         print(f"Context associated with instance {instance_id} found. Removing context")
         if ctx_name is not None:
             remove_docker_context(ctx_name)
 
         instance.wait_until_terminated(instance_id)
         instance = None
+        deregister_instance(ctx_name, ip)
         print(f"Instance {instance_id} successfully terminated.")
     except ClientError as err:
         print(

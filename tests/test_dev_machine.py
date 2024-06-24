@@ -1,3 +1,5 @@
+import os.path
+
 import boto3
 import json
 import docker
@@ -20,6 +22,8 @@ from fixtures import (
     aws_credentials,
     ec2_config
 )
+
+from eki_dev.utils import register_instance, deregister_instance
 
 # @pytest.mark.parametrize("clean_docker_context", "test_instance")
 @mock_aws
@@ -117,12 +121,55 @@ def test_list_instances(aws_credentials, ec2_config):
 
 
 @mock_aws
-# def test_clean_dangling_contexts(aws_credentials, ec2_config):
-#     # instance = create_ec2_instance(
-#     #     name='test_instance_1',
-#     #     **json.loads(ec2_config)["Ec2Instance"]["Properties"]
-#     # )
-#     clean_dangling_contexts()
+def test_clean_dangling_contexts_no_instances_running(aws_credentials, ec2_config):
+    name = "test"
+    host_ip = "10.10.10.10"
+
+    register_instance(name, host_ip)
+
+    clean_context = clean_dangling_contexts()
+    assert clean_context[0] == name
+
+    deregister_instance(name, host_ip)
+
+
+@mock_aws
+def test_clean_dangling_contexts_instance_running(aws_credentials, ec2_config, mocker):
+
+    class minst:
+        public_ip_address = "10.10.10.11"
+
+    m = mocker.patch("eki_dev.dev_machine._get_lst_instances")
+    m.return_value.iterator.return_value = [minst]
+
+    name = "test"
+    host_ip = "10.10.10.10"
+
+    register_instance(name, host_ip)
+
+    r = clean_dangling_contexts()
+    assert r[0] == "test"
+
+    deregister_instance(name, host_ip)
+
+
+def test_clean_dangling_contexts_instance_running_no_dangling_context(aws_credentials, ec2_config, mocker):
+
+    class minst:
+        public_ip_address = "10.10.10.10"
+
+    m = mocker.patch("eki_dev.dev_machine._get_lst_instances")
+    m.return_value.iterator.return_value= [minst]
+
+    name = "test"
+    host_ip = "10.10.10.10"
+
+    register_instance(name, host_ip)
+
+    r = clean_dangling_contexts()
+    assert len(r) == 0
+
+    deregister_instance(name, host_ip)
 
 
 @mock_aws

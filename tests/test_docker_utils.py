@@ -33,7 +33,9 @@ def docker_context() -> docker.Context:
 
 @mock_aws
 def test_login_into_ecr(docker_registry, mocker):
-    m = mocker.patch.object(docker.DockerClient, "login")
+
+    mdockerclient = mocker.patch('docker.from_env')
+    mdockerlogin = mocker.patch.object(docker.DockerClient, "login")
     ecr_client = login_into_ecr(docker_registry)
     assert ecr_client is not None
 

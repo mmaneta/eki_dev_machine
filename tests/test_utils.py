@@ -1,9 +1,31 @@
+import os.path
+
 import pytest
 
 from eki_dev.utils import (
     ssh_tunnel,
-    ssh_splitter
+    ssh_splitter,
+    register_instance,
+    deregister_instance
 )
+
+
+def test_register_deregister_instance():
+    user_folder = '.test_user'
+    name = "test"
+    host_ip = "10.01.01.01"
+    home = os.path.expanduser("~")
+
+    register_instance(name, host_ip, CONFIG_DIR=user_folder)
+
+    assert os.path.exists(os.path.join(home, user_folder, name+"@"+host_ip))
+
+    deregister_instance(name, host_ip, CONFIG_DIR=user_folder)
+    assert not os.path.exists(os.path.join(home, user_folder, name + "@" + host_ip))
+
+    os.rmdir(os.path.join(home, user_folder))
+
+
 
 
 def test_ssh_tunnel_connection_error():

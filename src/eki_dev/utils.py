@@ -1,5 +1,6 @@
 import os
 import subprocess
+from pathlib import Path
 
 
 # Show task progress (red for download, green for extract)
@@ -18,13 +19,30 @@ def show_progress(line, progress, tasks):
     #else:
     progress.update(tasks[id_], completed=line['progressDetail']['current'])
 
-# def configure(CONFIG_DIR='.dev_machine',
-#               CONFIG_FILE='dev_machine.config'):
-#     HOME=os.path.expanduser("~")
-#     config_path = os.path.join(HOME, CONFIG_DIR, CONFIG_FILE)
-#     with open(config_path, 'w') as f:
-#         input("")
-#         f.writelines()
+
+def register_instance(
+        name : str,
+        host_ip : str,
+        CONFIG_DIR='.dev_machine',
+              ) -> str:
+    HOME = os.path.expanduser("~")
+    dev_machine_dir = os.path.join(HOME, CONFIG_DIR)
+    Path(dev_machine_dir).mkdir(parents=False, exist_ok=True)
+    p = os.path.join(dev_machine_dir, name + "@" + host_ip)
+    Path(p).touch()
+    return p
+
+
+def deregister_instance(name : str,
+                        host_ip : str,
+                        CONFIG_DIR='.dev_machine')->str:
+    HOME = os.path.expanduser("~")
+    p = os.path.join(HOME, CONFIG_DIR, name + "@" + host_ip)
+    try:
+        os.remove(p)
+    except FileNotFoundError:
+        pass
+    return p
 
 
 def ssh_splitter(ssh_connect_string):

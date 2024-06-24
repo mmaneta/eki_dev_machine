@@ -16,6 +16,8 @@ with importlib_resources.as_file(ref) as data_path:
 
 def main(args):
 
+    dev_m.clean_dangling_contexts()
+
     if args.command == "blank":
         d = {"InstanceType": str(args.instance_type)}
         conf["Ec2Instance"]["Properties"].update(d)
@@ -66,5 +68,15 @@ if __name__ == "__main__":
         sys.exit(1)
 
     args = parser.parse_args()
+    try:
+        main(args)
+    except (Exception, KeyboardInterrupt) as e:
+        print("CLEANING UP INSTANCE...")
+        print(e)
+        name = args.name
+        # assumes list of instances are in order of creation, last instance will be removed
+        last_inst = [i for i in dev_m._get_lst_instances().iterator()][-1]
+        last_inst.load()
 
-    main(args)
+        print("terminating instance id {}".format(last_inst.id))
+        dev_m.terminate_instance(last_inst.id)

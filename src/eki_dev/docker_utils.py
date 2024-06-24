@@ -14,14 +14,23 @@ logging.basicConfig(level=logging.WARNING)
 
 def login_into_ecr(registry):
     """returns an authenticated docker client for ECR"""
-    logger.info("Retrieving ECR credentials")
+    print("Retrieving ECR credentials")
     token = AwsService.from_service('ecr').get_ecr_authorization()
     username, password = base64.b64decode(token).decode('utf-8').split(':')
-    docker_client = docker.from_env()
-    logger.info("Logging into {}".format(registry))
+
+    for i in range(500):
+        print("Creating docker client for ECR, attempt {}".format(i+1))
+        try:
+            docker_client = docker.from_env()
+            break
+        except docker.errors.DockerException as e:
+            pass
+
+
+    print("Logging into {}".format(registry))
     registry = registry.replace("https://", "")
     for i in range(3):
-        logger.info("{} attempt to log in".format(i+1))
+        print("{} attempt to log into ECR".format(i+1))
         try:
             ret = docker_client.login(username='AWS', password=password, registry=registry, reauth=True)
             if ret['Status'] == 'Login Succeeded':
@@ -29,6 +38,7 @@ def login_into_ecr(registry):
                 break
             time.sleep(1)
         except docker.errors.APIError as e:
+            print(e)
             logger.error(e)
 
     return docker_client
