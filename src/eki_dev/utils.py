@@ -1,5 +1,6 @@
 import os
 import subprocess
+from rich.pretty import pprint
 from pathlib import Path
 
 
@@ -7,7 +8,9 @@ from pathlib import Path
 def show_progress(line, progress, tasks):
 
     if line['status'] == 'Downloading':
-        id_ = f'[red][Download {line["id"]}]'
+        #id_ = f'[red][Download {line["id"]}]'
+        pprint(f'Downloading: {line["id"]}')
+        return
     elif line['status'] == 'Extracting':
         id_ = f'[green][Extract  {line["id"]}]'
     else:

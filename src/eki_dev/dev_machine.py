@@ -1,5 +1,6 @@
 import os
 import time
+import re
 
 from botocore.exceptions import ClientError
 import docker
@@ -15,6 +16,7 @@ from eki_dev.docker_utils import (
     find_context_name_from_instance_ip,
     check_docker_context_does_not_exist,
     login_into_ecr,
+    wait_for_token
 )
 
 from eki_dev.utils import (
@@ -104,7 +106,7 @@ def _run_jupyter_notebook(account_id: str,
     docker_client = login_into_ecr(registry)
 
     tasks = {}
-    with Progress(refresh_per_second=500) as progress:
+    with Progress(refresh_per_second=500, transient=True) as progress:
 
         resp = docker_client.api.pull(repository=f"{container_full_name}"[:-4], tag="dev", stream=True, decode=True)
         for line in resp:
@@ -120,10 +122,22 @@ def _run_jupyter_notebook(account_id: str,
                                  ports={jupyter_port: jupyter_port, dask_port: dask_port},
                                  )
 
-    for line in c.logs(stream=True, follow=True):
-        print(line.strip().decode('utf-8'))
-        if len(line) == 0:
-            break
+    token = wait_for_token(c)
+
+    if token:
+        jupyter_url = f"http://localhost:{jupyter_port}"
+        jupyter_lab_url = f"{jupyter_url}/?token={token}"
+
+        print(f"\tJupyterLab is running at: {jupyter_lab_url}")
+        print(f"\tToken: {token}")
+    else:
+        print("Timeout: Failed to find token in container logs.")
+        raise Exception("Timeout: Failed to find token in container logs.")
+
+    #
+    #
+    # for line in c.logs(stream=True, follow=True):
+    #     print(line.strip().decode('utf-8'))
 
 
 def create_instance_pull_start_server(name: str,

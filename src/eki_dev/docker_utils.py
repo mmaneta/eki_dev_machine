@@ -4,6 +4,7 @@ from eki_dev.utils import ssh_splitter
 from eki_dev.aws_service import AwsService
 
 import time
+import re
 import subprocess
 import docker
 import logging
@@ -19,7 +20,7 @@ def login_into_ecr(registry):
     username, password = base64.b64decode(token).decode('utf-8').split(':')
 
     for i in range(500):
-        print("Creating docker client for ECR, attempt {}".format(i+1))
+       # print("Creating docker client for ECR, attempt {}".format(i+1))
         try:
             docker_client = docker.from_env()
             break
@@ -154,3 +155,21 @@ def _check_docker_installed(user: str, host: str):
         print("Waiting for docker...")
         time.sleep(5)
         return False
+
+
+def wait_for_token(container):
+    max_attempts = 10  # Maximum number of attempts to check logs
+    attempt = 0
+
+    while attempt < max_attempts:
+        logs = container.logs().decode('utf-8')
+        match = re.search(r'\?token=([a-f0-9]+)', logs)
+
+        if match:
+            token = match.group(1)
+            return token
+
+        attempt += 1
+        time.sleep(5)  # Wait for 1 second before checking logs again
+
+    return None
