@@ -24,7 +24,9 @@ def main(args):
         d = {"InstanceType": str(args.instance_type)}
         conf["Ec2Instance"]["Properties"].update(d)
         name = str(args.name)
-        res = dev_m.create_ec2_instance(name=name, **conf["Ec2Instance"]["Properties"])
+        res = dev_m.create_ec2_instance(name=name,
+                                        project_tag=str(args.tag),
+                                        **conf["Ec2Instance"]["Properties"])
 
     if args.command == "list":
         dev_m.list_instances()
