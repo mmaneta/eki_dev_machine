@@ -34,10 +34,12 @@ def main(args):
     if args.command == "remove":
         dev_m.terminate_instance(args.instance_id)
 
-    if args.command == "model-machine":
+    if args.command == "explorer-machine":
 
         name = str(args.name)
-        i = dev_m.create_instance_pull_start_server(name=name, **conf["Ec2Instance"]["Properties"])
+        i = dev_m.create_instance_pull_start_server(name=name,
+                                                    project_tag=str(args.tag),
+                                                    **conf["Ec2Instance"]["Properties"])
 
 
 if __name__ == "__main__":
@@ -68,7 +70,7 @@ if __name__ == "__main__":
     )
     subparser_blank.add_argument("instance_id", type=str, help="instance id")
 
-    subparser_model_machine = subparsers.add_parser(name="model-machine", help="Create a data explore machine")
+    subparser_model_machine = subparsers.add_parser(name="explorer-machine", help="Create a data explorer machine")
     subparser_model_machine.add_argument(
         "--name", "-n", type=str, help="instance name", default="blank_machine")
     subparser_model_machine.add_argument(
