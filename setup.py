@@ -17,7 +17,7 @@ config = {
     'download_url': '',
     'include_package_data': True,
     'install_requires': [ # 
-        'pyyaml', 'botocore', 'boto3', 'docker-py', 'rich'
+        'pyyaml', 'botocore', 'boto3', 'docker', 'rich'
     ],
     'extras_require': {
         'test': ['pytest', 'pytest-mock', 'moto', 'black']

@@ -25,7 +25,26 @@ def aws_credentials():
     os.environ["AWS_SECRET_ACCESS_ID"] = "testing"
     os.environ["AWS_SECURITY_TOKEN"] = "testing"
     os.environ["AWS_SESSION_TOKEN"] = "testing"
-    os.environ["AWS_DEFAULT_REGION"] = "us-west-2"
+    os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+
+
+@pytest.fixture(scope="function")
+def aws_s3(aws_credentials):
+    with mock_aws():
+        yield boto3.client("s3", region_name="us-east-1")
+
+
+@pytest.fixture#(scope="function")
+def create_test_bucket(aws_s3):
+    boto3.client("s3").create_bucket(Bucket="eki-dev-machine-config")
+
+
+@pytest.fixture#(scope="function")
+def bucket_with_project_tags(aws_s3, create_test_bucket):
+    boto3.client("s3").put_object(Bucket="eki-dev-machine-config",
+                                  Body=b'dev,eki_training,test_project',
+                                  Key="project_tags.txt"
+                                  )
 
 
 @pytest.fixture(scope="function")
@@ -48,6 +67,11 @@ def ec2_config():
       ImageId: ami-123456"
       KeyName: test_key
       InstanceType:  t2.micro.test
+      TagSpecifications:
+        - ResourceType: instance
+          Tags:
+            - Key: user
+              Value: ${aws:username}
   """
     return json.dumps(yaml.safe_load(conf))
 

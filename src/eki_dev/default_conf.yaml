@@ -22,11 +22,11 @@ Ec2Instance:
     # SecurityGroups: 
     #   - sg-03827df3d87ad093a  
     #SubnetId: subnet-03273ac6cfdbc7db0
-    # TagSpecifications:
-    #   - ResourceType: instance
-    #     Tags: 
-    #       - Key: name
-    #       Value: marco.maneta  
+    TagSpecifications:
+       - ResourceType: instance
+         Tags:
+           - Key: user
+             Value: ${aws:username}
     UserData: |-
       #!/bin/sh
       sudo apt-get update -y

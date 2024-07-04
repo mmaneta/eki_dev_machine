@@ -6,7 +6,9 @@ import importlib_resources
 import yaml
 
 
+
 import eki_dev.dev_machine as dev_m
+from eki_dev import banner
 
 ref = importlib_resources.files('eki_dev') / 'default_conf.yaml'
 with importlib_resources.as_file(ref) as data_path:    
@@ -37,6 +39,7 @@ def main(args):
 
 
 if __name__ == "__main__":
+    print(banner)
 
     parser = argparse.ArgumentParser(prog="dev_machine", 
                                      description="Development Machine provisioner for EKI Environment and Water")
@@ -52,6 +55,10 @@ if __name__ == "__main__":
         "--instance_type", "-i", type=str, help="instance type", default="t2.micro"
     )
 
+    subparser_blank.add_argument(
+        "--tag", "-t", type=str, help="project identification tag"
+    )
+
     subparser_blank = subparsers.add_parser(name="list", help="List running instances")
 
     subparser_blank = subparsers.add_parser(
@@ -62,6 +69,9 @@ if __name__ == "__main__":
     subparser_model_machine = subparsers.add_parser(name="model-machine", help="Create a data explore machine")
     subparser_model_machine.add_argument(
         "--name", "-n", type=str, help="instance name", default="blank_machine")
+    subparser_model_machine.add_argument(
+        "--tag", "-t", type=str, help="project identification tag"
+    )
 
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)

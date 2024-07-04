@@ -20,24 +20,31 @@ from eki_dev.dev_machine import (
 
 from fixtures import (
     aws_credentials,
-    ec2_config
+    ec2_config,
+aws_s3,
+create_test_bucket,
+bucket_with_project_tags
 )
 
 from eki_dev.utils import register_instance, deregister_instance
 
 # @pytest.mark.parametrize("clean_docker_context", "test_instance")
 @mock_aws
-def test_create_ec2_instance(aws_credentials, ec2_config):
+def test_create_ec2_instance(aws_credentials, ec2_config,bucket_with_project_tags):
     instance = create_ec2_instance(name='test_instance',
+                                   project_tag='dev',
                                    **json.loads(ec2_config)["Ec2Instance"]["Properties"]
                                    )
-    docker.ContextAPI.remove_context('test_instance')
+    try:
+        docker.ContextAPI.remove_context('test_instance')
+    except docker.errors.ContextNotFound:
+        pass
 
     assert instance is not None
 
 
 @mock_aws
-def test_create_ec2_instance_role(aws_credentials, ec2_config):
+def test_create_ec2_instance_role(aws_credentials, ec2_config,bucket_with_project_tags):
 
     iam = boto3.client("iam")
     instance_prof = iam.create_instance_profile(InstanceProfileName="EC2ECRAccess")
@@ -45,6 +52,7 @@ def test_create_ec2_instance_role(aws_credentials, ec2_config):
     conf = json.loads(ec2_config)["Ec2Instance"]["Properties"]
     conf["IamInstanceProfile"] = {"Name": "EC2ECRAccess"}
     instance = create_ec2_instance(name='test_instance',
+                                   project_tag='test_project',
                                    **conf
                                    )
     docker.ContextAPI.remove_context('test_instance')
@@ -55,11 +63,12 @@ def test_create_ec2_instance_role(aws_credentials, ec2_config):
 
 
 @mock_aws()
-def test__run_jupyter_notebook(aws_credentials, ec2_config, mocker):
+def test__run_jupyter_notebook(aws_credentials, ec2_config,bucket_with_project_tags, mocker):
     m = mocker.patch('subprocess.Popen')
     m.return_value.communicate.side_effect = [(" ", "command not found"), ("docker v23.test", "127")]
 
     instance = create_ec2_instance(name='test_instance',
+                                   project_tag='dev',
                                    **json.loads(ec2_config)["Ec2Instance"]["Properties"]
                                    )
     account_id = AwsService.from_service('ec2').get_account_id()
@@ -79,7 +88,7 @@ def test__run_jupyter_notebook(aws_credentials, ec2_config, mocker):
 
 
 @mock_aws()
-def test_create_instance_pull_start_server(aws_credentials, ec2_config, mocker):
+def test_create_instance_pull_start_server(aws_credentials, ec2_config,bucket_with_project_tags, mocker):
 
 
     m = mocker.patch('subprocess.Popen')
@@ -93,23 +102,28 @@ def test_create_instance_pull_start_server(aws_credentials, ec2_config, mocker):
     conf = json.loads(ec2_config)["Ec2Instance"]["Properties"]
     instance_prof = iam.create_instance_profile(InstanceProfileName="AccessECR")
     name = "test_instance"
-    instance = create_instance_pull_start_server(name, **conf)
+    instance = create_instance_pull_start_server(name=name,
+                                                 project_tag='test_project',
+                                                 **conf)
 
     docker.ContextAPI.remove_context('test_instance')
 
 
 @mock_aws
-def test_list_instances(aws_credentials, ec2_config):
+def test_list_instances(aws_credentials, ec2_config,bucket_with_project_tags):
     instance = create_ec2_instance(
         name='test_instance_1',
+        project_tag='test_project',
         **json.loads(ec2_config)["Ec2Instance"]["Properties"]
     )
     instance = create_ec2_instance(
         name='test_instance_2',
+        project_tag='test_project',
         **json.loads(ec2_config)["Ec2Instance"]["Properties"]
     )
     instance = create_ec2_instance(
         name='test_instance_3',
+        project_tag='test_project',
         **json.loads(ec2_config)["Ec2Instance"]["Properties"]
     )
     lst_inst = _get_lst_instances()
@@ -122,7 +136,7 @@ def test_list_instances(aws_credentials, ec2_config):
 
 @mock_aws
 def test_clean_dangling_contexts_no_instances_running(aws_credentials, ec2_config):
-    name = "test"
+    name = "test_instance"
     host_ip = "10.10.10.10"
 
     register_instance(name, host_ip)
@@ -173,9 +187,10 @@ def test_clean_dangling_contexts_instance_running_no_dangling_context(aws_creden
 
 
 @mock_aws
-def test_terminate_instance(aws_credentials, ec2_config):
+def test_terminate_instance(aws_credentials, ec2_config,bucket_with_project_tags):
     instance = create_ec2_instance(
         name='test_instance',
+        project_tag='test_project',
         **json.loads(ec2_config)["Ec2Instance"]["Properties"]
     )
     list_instances()

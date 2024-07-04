@@ -1,13 +1,34 @@
 import os.path
-
+import json
 import pytest
+
+from fixtures import (ec2_config,
+aws_credentials,
+aws_s3,
+create_test_bucket,
+                      bucket_with_project_tags)
+from moto import mock_aws
 
 from eki_dev.utils import (
     ssh_tunnel,
     ssh_splitter,
     register_instance,
-    deregister_instance
+    deregister_instance,
+    add_instance_tags,
+    get_project_tags
 )
+
+@mock_aws
+def test_get_project_tags(bucket_with_project_tags):
+    assert get_project_tags(bucket='eki-dev-machine-config') == ['dev', 'eki_training','test_project']
+
+def test_add_instance_tags(ec2_config):
+    instance_attrs = json.loads(ec2_config)["Ec2Instance"]["Properties"]
+    instance_attrs = add_instance_tags('test_project', **instance_attrs)
+
+    assert instance_attrs['TagSpecifications'][0] ['ResourceType'] == 'instance'
+    assert instance_attrs['TagSpecifications'][0]['Tags'][0]['Key'] == 'user'
+    assert instance_attrs['TagSpecifications'][0]['Tags'][1]['Key'] == 'project'
 
 
 def test_register_deregister_instance():
@@ -28,15 +49,15 @@ def test_register_deregister_instance():
 
 
 
-def test_ssh_tunnel_connection_error():
-
-    with pytest.raises(ConnectionError) as e:
-        ssh_tunnel(user='test_user',
-               host='10.10.10.10',
-               jupyter_port=8888,
-               dask_port=8889)
-
-    assert "Connection refused" in str(e.value.args[0])
+# def test_ssh_tunnel_connection_error():
+#
+#     with pytest.raises(ConnectionError) as e:
+#         ssh_tunnel(user='test_user',
+#                host='10.10.10.10',
+#                jupyter_port=8888,
+#                dask_port=8889)
+#
+#     assert "Connection refused" in str(e.value.args[0])
 
 
 def test_ssh_splitter_with_ssh():

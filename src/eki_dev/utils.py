@@ -3,6 +3,8 @@ import subprocess
 from rich.pretty import pprint
 from pathlib import Path
 
+from eki_dev.aws_service import AwsService
+
 
 # Show task progress (red for download, green for extract)
 def show_progress(line, progress, tasks):
@@ -21,6 +23,25 @@ def show_progress(line, progress, tasks):
         tasks[id_] = progress.add_task(f"{id_}", total=line['progressDetail']['total'])
     #else:
     progress.update(tasks[id_], completed=line['progressDetail']['current'])
+
+
+def get_project_tags(bucket='eki-dev-machine-config'):
+    s3 = AwsService.from_service('s3')
+    response = s3.client.get_object(Bucket=bucket, Key='project_tags.txt')
+    data = response['Body'].read()
+    tags = data.decode('utf8').strip().split(',')
+    return tags
+
+
+def add_instance_tags(project_tag,
+                      **instance_params):
+    # add user and project tags
+    tag = {
+                    'Key': 'project',
+                    'Value': project_tag
+                }
+    instance_params['TagSpecifications'][0]['Tags'].append(tag)
+    return instance_params
 
 
 def register_instance(

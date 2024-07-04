@@ -23,11 +23,14 @@ from eki_dev.utils import (
     show_progress,
     ssh_tunnel,
     register_instance,
-    deregister_instance
+    deregister_instance,
+    add_instance_tags,
+    get_project_tags
 )
 
 
 def create_ec2_instance(name: str,
+                        project_tag: str,
                         **instance_params):
     """
     Creates a new EC2 instance based on the provided instance parameters.
@@ -42,11 +45,18 @@ def create_ec2_instance(name: str,
         ClientError: If instance creation fails.
     """
 
+    lst_tags = get_project_tags()
+    if project_tag in lst_tags:
+        instance_params = add_instance_tags(project_tag, **instance_params)
+    else:
+        print(f"tag {project_tag} must be one of {lst_tags}")
+        return
+
     try:
         check_docker_context_does_not_exist(name)
     except docker.errors.ContextAlreadyExists as e:
         print(f"Context {name} already exists")
-        raise
+        return
 
     try:
         res = AwsService.from_service("ec2")
@@ -134,13 +144,9 @@ def _run_jupyter_notebook(account_id: str,
         print("Timeout: Failed to find token in container logs.")
         raise Exception("Timeout: Failed to find token in container logs.")
 
-    #
-    #
-    # for line in c.logs(stream=True, follow=True):
-    #     print(line.strip().decode('utf-8'))
-
 
 def create_instance_pull_start_server(name: str,
+                                      project_tag: str,
                                       jupyter_port: int = 8888,
                                       dask_port: int = 8889,
                                       container: str = "eki:dev",
@@ -156,7 +162,9 @@ def create_instance_pull_start_server(name: str,
 
 
     try:
-        i = create_ec2_instance(name=name, **instance_params)
+        i = create_ec2_instance(name=name,
+                                project_tag=project_tag,
+                                **instance_params)
     except Exception as e:
         print(e)
         raise
