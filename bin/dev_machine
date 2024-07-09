@@ -35,7 +35,8 @@ def main(args):
         dev_m.terminate_instance(args.instance_id)
 
     if args.command == "explorer-machine":
-
+        d = {"InstanceType": str(args.instance_type)}
+        conf["Ec2Instance"]["Properties"].update(d)
         name = str(args.name)
         i = dev_m.create_instance_pull_start_server(name=name,
                                                     project_tag=str(args.tag),
@@ -63,18 +64,21 @@ if __name__ == "__main__":
         "--tag", "-t", type=str, help="project identification tag"
     )
 
-    subparser_blank = subparsers.add_parser(name="list", help="List running instances")
+    subparser_list = subparsers.add_parser(name="list", help="List running instances")
 
-    subparser_blank = subparsers.add_parser(
+    subparser_remove = subparsers.add_parser(
         name="remove", help="Terminate running instance"
     )
-    subparser_blank.add_argument("instance_id", type=str, help="instance id")
+    subparser_remove.add_argument("instance_id", type=str, help="instance id")
 
     subparser_model_machine = subparsers.add_parser(name="explorer-machine", help="Create a data explorer machine")
     subparser_model_machine.add_argument(
         "--name", "-n", type=str, help="instance name", default="blank_machine")
     subparser_model_machine.add_argument(
         "--tag", "-t", type=str, help="project identification tag"
+    )
+    subparser_model_machine.add_argument(
+        "--instance_type", "-i", type=str, help="instance type", default="t2.micro"
     )
 
     if len(sys.argv)==1:
