@@ -106,7 +106,8 @@ def _run_jupyter_notebook(account_id: str,
     REGION=region
     ACCOUNT=account_id
     registry = f"{ACCOUNT}.dkr.ecr.{REGION}.amazonaws.com"
-    container_full_name = f"{ACCOUNT}.dkr.ecr.{REGION}.amazonaws.com/{container_name}"
+    c_name, c_tag = container_name.split(':')
+    container_full_name = f"{ACCOUNT}.dkr.ecr.{REGION}.amazonaws.com/{c_name}"
     host = host_ip
     os.environ["DOCKER_HOST"] = f"ssh://{user}@{host}"
 
@@ -118,7 +119,7 @@ def _run_jupyter_notebook(account_id: str,
     tasks = {}
     with Progress(refresh_per_second=500, transient=True) as progress:
 
-        resp = docker_client.api.pull(repository=f"{container_full_name}"[:-4], tag="dev", stream=True, decode=True)
+        resp = docker_client.api.pull(repository=f"{container_full_name}", tag=c_tag, stream=True, decode=True)
         for line in resp:
             show_progress(line, progress, tasks)
 
