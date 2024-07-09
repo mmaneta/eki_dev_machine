@@ -149,7 +149,7 @@ def create_instance_pull_start_server(name: str,
                                       project_tag: str,
                                       jupyter_port: int = 8888,
                                       dask_port: int = 8889,
-                                      container: str = "eki:dev",
+                                      container: str = "data_explorer:prod",
                                       **instance_params):
 
     try:
