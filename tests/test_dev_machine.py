@@ -62,9 +62,10 @@ def test_create_ec2_instance_role(aws_credentials, ec2_config,bucket_with_projec
 
 
 
-@mock_aws()
+@mock_aws
 def test__run_jupyter_notebook(aws_credentials, ec2_config,bucket_with_project_tags, mocker):
     m = mocker.patch('subprocess.Popen')
+    m.return_value.returncode = 0
     m.return_value.communicate.side_effect = [(" ", "command not found"), ("docker v23.test", "127")]
 
     instance = create_ec2_instance(name='test_instance',

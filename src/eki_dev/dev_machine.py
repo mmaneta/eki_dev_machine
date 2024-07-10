@@ -50,13 +50,13 @@ def create_ec2_instance(name: str,
         instance_params = add_instance_tags(project_tag, **instance_params)
     else:
         print(f"tag {project_tag} must be one of {lst_tags}")
-        return
+        raise Exception(f"tag {project_tag} must be one of {lst_tags}")
 
     try:
         check_docker_context_does_not_exist(name)
     except docker.errors.ContextAlreadyExists as e:
         print(f"Context {name} already exists")
-        return
+        raise
 
     try:
         res = AwsService.from_service("ec2")
@@ -150,7 +150,7 @@ def create_instance_pull_start_server(name: str,
                                       project_tag: str,
                                       jupyter_port: int = 8888,
                                       dask_port: int = 8889,
-                                      container: str = "data_explorer:prod",
+                                      container: str = "data_explore:prod",
                                       **instance_params):
 
     try:
