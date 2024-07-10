@@ -150,7 +150,7 @@ def create_instance_pull_start_server(name: str,
                                       project_tag: str,
                                       jupyter_port: int = 8888,
                                       dask_port: int = 8889,
-                                      container: str = "data_explore:prod",
+                                      container: str = "data_explorer:prod",
                                       **instance_params):
 
     try:
@@ -323,7 +323,7 @@ def terminate_instance(instance_id: str = None) -> None:
         if ctx_name is not None:
             remove_docker_context(ctx_name)
 
-        instance.wait_until_terminated(instance_id)
+        #instance.wait_until_terminated(instance_id)
         instance = None
         deregister_instance(ctx_name, ip)
         print(f"Instance {instance_id} successfully terminated.")
