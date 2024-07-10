@@ -124,7 +124,8 @@ def _run_jupyter_notebook(account_id: str,
             show_progress(line, progress, tasks)
 
     print("Running container with Jupyter notebook...")
-    c = docker_client.containers.run(image=f"{container_full_name}",
+    c_full_name = ":".join([container_full_name, c_tag])
+    c = docker_client.containers.run(image=f"{c_full_name}",
                                  command=f"jupyter-lab --port {jupyter_port} --no-browser --ip=0.0.0.0 --allow-root",
                                  user=0,
                                  #auto_remove=True,
