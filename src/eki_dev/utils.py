@@ -2,8 +2,81 @@ import os
 import subprocess
 from rich.pretty import pprint
 from pathlib import Path
+import yaml
+import importlib_resources
 
 from eki_dev.aws_service import AwsService
+
+
+def generate_makefile(image_name : str,
+                      repo_name : str,
+                      makefile_name : str = 'Makefile') -> str:
+
+    tmpl = makefile_template.format(image_name, repo_name)
+    print(f"Writing Makefile to {makefile_name} with repo {image_name} and image {repo_name}")
+    with open(makefile_name, "w") as makefile:
+        makefile.write(tmpl)
+    return tmpl
+
+
+class Config:
+    def __init__(self):
+        self.conf = self.retrieve_configuration()
+
+    @staticmethod
+    def retrieve_configuration():
+        ref = importlib_resources.files('eki_dev') / 'default_conf.yaml'
+        with importlib_resources.as_file(ref) as data_path:
+            with open(data_path, "r", encoding='utf8') as f:
+                conf = yaml.load(f, Loader=yaml.FullLoader)
+        return conf
+
+    def update_ssh_key_name(self, key_name: str):
+        print(f"Updating ssh key name to {key_name}")
+        d = {"KeyName": key_name}
+        self.conf["Ec2Instance"]["Properties"].update(d)
+        return self
+
+    def write_configuration(self):
+        ref = importlib_resources.files('eki_dev') / 'default_conf.yaml'
+        with importlib_resources.as_file(ref) as data_path:
+            with open(data_path, "w", encoding='utf8') as f:
+                yaml.dump(self.conf, f)
+
+    def create_ssh_keys(self,
+                        name: str,
+                        path_ssh_config: str = '~/.ssh',
+                        KeyType: str = 'rsa',
+                        DryRun: bool = False,
+                        KeyFormat: str = 'pem'):
+        path_ssh_config = os.path.expanduser(path_ssh_config)
+        client = AwsService.from_service('ec2')
+        resp = client.client.create_key_pair(KeyName=name,
+                                      DryRun=DryRun,
+                                      KeyType=KeyType,
+                                      KeyFormat=KeyFormat)
+        if resp['ResponseMetadata']['HTTPStatusCode'] != 200:
+            raise Exception("Key pair creation failed")
+
+        private_key = resp['KeyMaterial']
+        with open(os.path.join(path_ssh_config,name), 'w') as f:
+            f.write(private_key)
+
+        print(f'Key pair {name} created and private key save to {os.path.join(path_ssh_config,name)}.')
+
+        print(f'Updating EKI Dev Machine ssh key name to {name}')
+        self.update_ssh_key_name(name).write_configuration()
+
+        print(f"Please, make this ssh key pair {name} the default by")
+        print(f"adding the line ")
+        print(f"""
+        \tIdentityFile {os.path.join(path_ssh_config,name)}
+        """)
+        print(f"to your {path_ssh_config}/config file ")
+
+    def user_input_configuration(self):
+        ssh_key_name = input("Enter ssh key name: ")
+        self.create_ssh_keys(ssh_key_name)
 
 
 # Show task progress (red for download, green for extract)
@@ -88,3 +161,38 @@ def ssh_tunnel(user: str,
     if proc.returncode != 0:
         raise ConnectionError(stderr)
     return tunnel_cmd
+
+makefile_template = \
+"""
+SHELL = /bin/bash
+IMAGE = {}
+TAG ?= dev
+REGION = $(shell aws configure get region)
+AWS_ACCOUNT_ID = $(shell aws sts get-caller-identity --query Account --output text)
+REPO = {}
+ 
+build:
+	DOCKER_BUILDKIT=1 && export DOCKER_BUILDKIT && \
+	docker build -f Dockerfile -t $(IMAGE):$(TAG) --ssh=default . 
+
+run:	build
+	@docker run --rm -it -v .:/home/eki --platform linux/amd64 $(IMAGE):$(TAG)
+
+push_aws: check-tag
+	aws ecr get-login-password --region $(REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com
+	#docker tag e9ae3c220b23 $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
+	#docker tag $(REPO):$(TAG) $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
+	docker tag $(REPO):$(TAG) $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
+	docker push  $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
+	#docker push  $(REPO):$(TAG)
+
+jupyter-lab: build
+	@docker run --rm -it -v .:/home/eki -p 8888:8888 -p 8889:8889 -u 0 $(REPO):$(TAG) jupyter-lab --no-browser --ip=0.0.0.0 --allow-root
+
+.PHONY:	build run push_aws jupyter-lab check-tag
+
+check-tag:
+ifndef TAG
+	$(error TAG needs to be set)
+endif
+"""

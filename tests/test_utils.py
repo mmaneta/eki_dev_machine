@@ -1,11 +1,13 @@
 import os.path
 import json
-import pytest
+from pathlib import Path
+import random
+import string
 
 from fixtures import (ec2_config,
-aws_credentials,
-aws_s3,
-create_test_bucket,
+                        aws_credentials,
+                        aws_s3,
+                        create_test_bucket,
                       bucket_with_project_tags)
 from moto import mock_aws
 
@@ -15,12 +17,57 @@ from eki_dev.utils import (
     register_instance,
     deregister_instance,
     add_instance_tags,
-    get_project_tags
+    get_project_tags,
+    Config,
+    generate_makefile
 )
+
+
+def test_generate_makefile():
+    tmpl = generate_makefile("test_image", "test_repo", makefile_name='test_makefile')
+    with open('test_makefile') as f:
+        assert len(tmpl) > 0
+        assert tmpl is not None
+        assert f.read() == tmpl
+    os.remove('test_makefile')
+
+
+class TestConfig:
+    def setUp(self):
+        pass
+
+    def test_constructor(self, mocker):
+        m = mocker.patch('importlib_resources.files')
+        m.return_value = Path('.')
+        config = Config()
+
+        assert isinstance(config.conf, dict)
+
+    def test_write_config(self, mocker):
+      #  m = mocker.patch('importlib_resources.files')
+      #  m.return_value = Path('.')
+        config = Config()
+        random_string = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+        config.update_ssh_key_name(random_string)
+        config.write_configuration()
+
+        config2 = Config()
+        assert config2.conf["Ec2Instance"]["Properties"]['KeyName'] == random_string
+
+
+    @mock_aws
+    def test_create_ssh_keys(self, mocker):
+        m = mocker.patch('importlib_resources.files')
+        m.return_value = Path('.')
+        Config().create_ssh_keys("test_key")
+
+        assert os.path.exists(os.path.expanduser('~/.ssh/test_key'))
+        os.remove(os.path.expanduser('~/.ssh/test_key'))
 
 @mock_aws
 def test_get_project_tags(bucket_with_project_tags):
-    assert get_project_tags(bucket='eki-dev-machine-config') == ['dev', 'eki_training','test_project']
+    assert get_project_tags(bucket='eki-dev-machine-config') == ['dev', 'eki_training', 'test_project']
+
 
 def test_add_instance_tags(ec2_config):
     instance_attrs = json.loads(ec2_config)["Ec2Instance"]["Properties"]

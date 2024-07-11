@@ -25,7 +25,7 @@ def login_into_ecr(registry):
             docker_client = docker.from_env()
             break
         except docker.errors.DockerException as e:
-            pass
+            raise e
 
 
     print("Logging into {}".format(registry))
