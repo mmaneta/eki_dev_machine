@@ -61,6 +61,7 @@ class Config:
         private_key = resp['KeyMaterial']
         with open(os.path.join(path_ssh_config,name), 'w') as f:
             f.write(private_key)
+            os.chmod(os.path.join(path_ssh_config,name), 0o600)
 
         print(f'Key pair {name} created and private key save to {os.path.join(path_ssh_config,name)}.')
 
