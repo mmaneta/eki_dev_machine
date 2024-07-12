@@ -19,13 +19,16 @@ def login_into_ecr(registry):
     token = AwsService.from_service('ecr').get_ecr_authorization()
     username, password = base64.b64decode(token).decode('utf-8').split(':')
 
-    for i in range(500):
+    print("Creating Client...")
+
        # print("Creating docker client for ECR, attempt {}".format(i+1))
-        try:
+    try:
+        for i in range(500):
             docker_client = docker.from_env()
             break
-        except docker.errors.DockerException as e:
-            raise e
+            time.sleep(5)
+    except docker.errors.DockerException as e:
+        raise e
 
 
     print("Logging into {}".format(registry))

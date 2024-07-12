@@ -1,13 +1,13 @@
 Ec2Instance:
   Type: AWS::EC2::Instance
-  Properties:        
+  Properties:
     ImageId: ami-05c969369880fa2c2
     InstanceInitiatedShutdownBehavior: terminate
     InstanceType: t2.micro
-    KeyName: mac_id_rsa
+    KeyName: mac_key_rsa
     BlockDeviceMappings:
     - DeviceName: /dev/sda1
-      Ebs:      
+      Ebs:
         DeleteOnTermination: true
         Encrypted: false
         VolumeSize: 25
@@ -19,8 +19,8 @@ Ec2Instance:
       DeviceIndex: 0
       Groups:
       - sg-03827df3d87ad093a
-    # SecurityGroups: 
-    #   - sg-03827df3d87ad093a  
+    # SecurityGroups:
+    #   - sg-03827df3d87ad093a
     #SubnetId: subnet-03273ac6cfdbc7db0
     TagSpecifications:
        - ResourceType: instance

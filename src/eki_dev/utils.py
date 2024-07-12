@@ -175,26 +175,27 @@ AWS_ACCOUNT_ID = $(shell aws sts get-caller-identity --query Account --output te
 REPO = {}
  
 build:
-	DOCKER_BUILDKIT=1 && export DOCKER_BUILDKIT
-	docker build -f Dockerfile -t $(IMAGE):$(TAG) . 
+\tDOCKER_BUILDKIT=1 && export DOCKER_BUILDKIT
+\tdocker build -f Dockerfile -t $(IMAGE):$(TAG) . 
 
 run: build
-	@docker run --rm -it -v .:/home/eki --platform linux/amd64 $(IMAGE):$(TAG)
+\t@docker run --rm -it -v .:/home/eki --platform linux/amd64 $(IMAGE):$(TAG)
 
 run_aws: build
-	@docker run --rm -it -v /home/ubuntu/efs:/home/eki/efs --platform linux/amd64 $(IMAGE):$(TAG)
+\t@docker run --rm -it -v /home/ubuntu/efs:/home/eki/efs --platform linux/amd64 $(IMAGE):$(TAG)
 
 push_aws: check-tag
-	aws ecr get-login-password --region $(REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com
-	docker tag $(REPO):$(TAG) $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
-	docker push  $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
+\taws ecr get-login-password --region $(REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com
+\tdocker tag $(REPO):$(TAG) $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
+\tdocker push  $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
 
 pull_aws: check-tag
-    aws ecr get-login-password --region $(REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com
-    docker pull  $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
+\taws ecr get-login-password --region $(REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com
+\tdocker pull  $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
+\tdocker tag $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG) $(REPO):$(TAG)
     
 jupyter-lab: build
-    @docker run --rm -it -v .:/home/eki -p 8888:8888 -p 8889:8889 -u 0 $(REPO):$(TAG) jupyter-lab --no-browser --ip=0.0.0.0 --allow-root
+\t@docker run --rm -it -v .:/home/eki -p 8888:8888 -p 8889:8889 -u 0 $(REPO):$(TAG) jupyter-lab --no-browser --ip=0.0.0.0 --allow-root
 
 .PHONY:	build run run_aws push_aws pull_aws jupyter-lab check-tag
 
