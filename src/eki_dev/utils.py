@@ -59,12 +59,11 @@ class Config:
             raise Exception("Key pair creation failed")
 
         private_key = resp['KeyMaterial']
-        name_id_rsa = 'id_rsa'
-        with open(os.path.join(path_ssh_config,name_id_rsa), 'w') as f:
+        with open(os.path.join(path_ssh_config,name), 'w') as f:
             f.write(private_key)
-            os.chmod(os.path.join(path_ssh_config,name_id_rsa), 0o600)
+            os.chmod(os.path.join(path_ssh_config,name), 0o600)
 
-        print(f'Key pair {name} created and private key save to {os.path.join(path_ssh_config,name_id_rsa)}.')
+        print(f'Key pair {name} created and private key save to {os.path.join(path_ssh_config,name)}.')
 
         print(f'Updating EKI Dev Machine ssh key name to {name}')
         self.update_ssh_key_name(name).write_configuration()
@@ -72,7 +71,7 @@ class Config:
         print(f"\nPlease, make this ssh key pair {name} the default by")
         print(f"adding the lines ")
         print(f"""
-        
+        \tIdentityFile {os.path.join(path_ssh_config,name)}
         \tStrictHostKeyChecking no
         """)
         print(f"to your {path_ssh_config}/config file ")
@@ -182,7 +181,7 @@ run: build
 	@docker run --rm -it -v .:/home/eki --platform linux/amd64 $(IMAGE):$(TAG)
 
 run_aws: build
-	@docker run --rm -it -v /home/efs:/home/eki/efs --platform linux/amd64 $(IMAGE):$(TAG)
+	@docker run --rm -it -v /home/ubuntu/efs:/home/eki/efs --platform linux/amd64 $(IMAGE):$(TAG)
 
 push_aws: check-tag
 	aws ecr get-login-password --region $(REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com
