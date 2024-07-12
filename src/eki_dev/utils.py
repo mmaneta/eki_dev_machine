@@ -64,7 +64,7 @@ class Config:
             f.write(private_key)
             os.chmod(os.path.join(path_ssh_config,namepem), 0o600)
 
-        print(f'Key pair {name} created and private key save to {os.path.join(path_ssh_config,name)}.')
+        print(f'Key pair {name} created and private key save to {os.path.join(path_ssh_config,namepem)}.')
 
         print(f'Updating EKI Dev Machine ssh key name to {name}')
         self.update_ssh_key_name(name).write_configuration()
@@ -72,7 +72,7 @@ class Config:
         print(f"\nPlease, make this ssh key pair {name} the default by")
         print(f"adding the lines ")
         print(f"""
-        \tIdentityFile {os.path.join(path_ssh_config,name)}
+        \tIdentityFile {os.path.join(path_ssh_config,namepem)}
         \tStrictHostKeyChecking no
         """)
         print(f"to your {path_ssh_config}/config file ")
