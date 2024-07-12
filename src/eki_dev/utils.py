@@ -194,13 +194,16 @@ pull_aws: check-tag
 \tdocker pull  $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
 \tdocker tag $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG) $(REPO):$(TAG)
     
-jupyter-lab: build
+jupyter-lab:
 \t@docker run --rm -it -v .:/home/eki -p 8888:8888 -p 8889:8889 -u 0 $(REPO):$(TAG) jupyter-lab --no-browser --ip=0.0.0.0 --allow-root
+
+jupyter-lab_aws:
+\t@docker run --rm -it -v /home/ubuntu/efs:/home/eki -p 8888:8888 -p 8889:8889 -u 0 $(REPO):$(TAG) jupyter-lab --no-browser --ip=0.0.0.0 --allow-root
 
 .PHONY:	build run run_aws push_aws pull_aws jupyter-lab check-tag
 
 check-tag:
 ifndef TAG
-    $(error TAG needs to be set)
+\t$(error TAG needs to be set)
 endif
 """
