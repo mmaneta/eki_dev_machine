@@ -68,10 +68,11 @@ class Config:
         print(f'Updating EKI Dev Machine ssh key name to {name}')
         self.update_ssh_key_name(name).write_configuration()
 
-        print(f"Please, make this ssh key pair {name} the default by")
-        print(f"adding the line ")
+        print(f"\nPlease, make this ssh key pair {name} the default by")
+        print(f"adding the lines ")
         print(f"""
         \tIdentityFile {os.path.join(path_ssh_config,name)}
+        \tStrictHostKeyChecking no
         """)
         print(f"to your {path_ssh_config}/config file ")
 
@@ -178,22 +179,26 @@ build:
 
 run:	build
 	@docker run --rm -it -v .:/home/eki --platform linux/amd64 $(IMAGE):$(TAG)
+	
+run_aws:	build
+	@docker run --rm -it -v /home/efs:/home/eki/efs --platform linux/amd64 $(IMAGE):$(TAG)
 
-push_aws: check-tag
+push_aws:   check-tag
 	aws ecr get-login-password --region $(REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com
-	#docker tag e9ae3c220b23 $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
-	#docker tag $(REPO):$(TAG) $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
 	docker tag $(REPO):$(TAG) $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
 	docker push  $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
-	#docker push  $(REPO):$(TAG)
+	
+pull_aws:   check-tag
+    aws ecr get-login-password --region $(REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com
+    docker pull  $(AWS_ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO):$(TAG)
+    
+jupyter-lab:    build
+    @docker run --rm -it -v .:/home/eki -p 8888:8888 -p 8889:8889 -u 0 $(REPO):$(TAG) jupyter-lab --no-browser --ip=0.0.0.0 --allow-root
 
-jupyter-lab: build
-	@docker run --rm -it -v .:/home/eki -p 8888:8888 -p 8889:8889 -u 0 $(REPO):$(TAG) jupyter-lab --no-browser --ip=0.0.0.0 --allow-root
-
-.PHONY:	build run push_aws jupyter-lab check-tag
+.PHONY:	build run run_aws push_aws pull_aws jupyter-lab check-tag
 
 check-tag:
 ifndef TAG
-	$(error TAG needs to be set)
+    $(error TAG needs to be set)
 endif
 """
