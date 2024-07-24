@@ -73,7 +73,8 @@ class Config:
                 yaml.dump(self.conf, f)
 
     def write_user_configuration(self):
-        fn_config = os.path.join(self.path_config_dir, "config")
+        path_config_dir = os.path.expanduser(self.path_config_dir)
+        fn_config = os.path.join(path_config_dir, "config")
         with open(fn_config, "w", encoding='utf8') as f:
             yaml.dump(self.user_conf, f)
 
