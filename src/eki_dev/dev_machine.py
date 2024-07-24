@@ -294,14 +294,24 @@ def terminate_instance(instance_id: str = None) -> None:
 
     filters = [{"Name": "instance-state-name", "Values": ["running"]}]
 
-    if instance_id is not None:
+    if instance_id is None:
+        return
+    else:
         try:
             lst_instances = _get_lst_instances()
             instances = lst_instances.filter(Filters=filters)
+            if instances is None:
+                print("No instance to terminate.")
+                return
             for inst in instances:
                 if inst.id == instance_id:
                     print(f"Found running instance {instance_id}")
                     instance = inst
+                    instance_id = instance.id
+                    _remove_instance(instance_id, instance)
+                    return
+            print(f"Instance {instance_id} not found. Instance not terminated.")
+            return
 
         except ClientError as err:
             print(
@@ -310,13 +320,10 @@ def terminate_instance(instance_id: str = None) -> None:
                 err.response["Error"]["Code"],
                 err.response["Error"]["Message"],
             )
-            raise
+            return
 
-    if instances is None:
-        print("No instance to terminate.")
-        return
 
-    instance_id = instance.id
+def _remove_instance(instance_id, instance):
     try:
         print(f"Terminating instance {instance_id}...")
         ip = instance.public_ip_address
@@ -332,11 +339,5 @@ def terminate_instance(instance_id: str = None) -> None:
         deregister_instance(ctx_name, ip)
         print(f"Instance {instance_id} successfully terminated.")
     except ClientError as err:
-        print(
-            "Couldn't terminate instance %s. Here's why: %s: %s",
-            instance_id,
-            err.response["Error"]["Code"],
-            err.response["Error"]["Message"],
-        )
-        raise
+        raise err
     

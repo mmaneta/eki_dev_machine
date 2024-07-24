@@ -189,6 +189,7 @@ def test_clean_dangling_contexts_instance_running_no_dangling_context(aws_creden
 
 @mock_aws
 def test_terminate_instance(aws_credentials, ec2_config,bucket_with_project_tags):
+    clean_dangling_contexts()
     instance = create_ec2_instance(
         name='test_instance',
         project_tag='test_project',
@@ -199,3 +200,27 @@ def test_terminate_instance(aws_credentials, ec2_config,bucket_with_project_tags
     lst_inst = _get_lst_instances()
 
     assert list(lst_inst.all())[0].state["Name"] == "terminated"
+
+
+@mock_aws
+def test_terminate_instance_incorrect_id(aws_credentials, ec2_config,bucket_with_project_tags, capsys):
+    clean_dangling_contexts()
+    instance = create_ec2_instance(
+        name='test_instance',
+        project_tag='test_project',
+        **json.loads(ec2_config)["Ec2Instance"]["Properties"]
+    )
+    list_instances()
+    terminate_instance("incorrect_id")
+    captured = capsys.readouterr().out.strip().split("\n")
+    assert captured[-1] == "Instance incorrect_id not found. Instance not terminated."
+    #Clean up
+    lst_inst = _get_lst_instances()
+    terminate_instance(instance.id)
+
+    assert list(lst_inst.all())[0].state["Name"] == "terminated"
+
+@mock_aws
+def test_terminate_instance_instance_none(aws_credentials, ec2_config,bucket_with_project_tags):
+    clean_dangling_contexts()
+    assert terminate_instance() is None
