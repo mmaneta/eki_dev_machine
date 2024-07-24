@@ -23,7 +23,8 @@ Ec2Instance:
       Tags:
       - Key: user
         Value: default
-    UserData: '#!/bin/sh
+    UserData: |-
+      #!/bin/sh
       sudo apt-get update -y
       sudo apt-get -y install docker.io
       sudo service docker start
