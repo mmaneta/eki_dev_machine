@@ -211,7 +211,10 @@ def clean_dangling_contexts(CONFIG_DIR='.dev_machine') -> []:
     HOME = os.path.expanduser("~")
     for root, dirs, files in os.walk(os.path.join(HOME, CONFIG_DIR)):
         for file in files:
-            name, ip = file.split("@")
+            try:
+                name, ip = file.split("@")
+            except ValueError:
+                continue
             if ip not in lst_ips:
                 try:
                     remove_docker_context(name)

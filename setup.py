@@ -7,7 +7,7 @@ Utilities to launch, provision, and delete aws host servers.
 
 config = {
     'name': 'dev_machine',
-    'version': '0.0.2.dev0',
+    'version': '0.0.3.dev0',
     'author': 'Marco Maneta',
     'author_email': 'mmaneta@ekiconsult.com',
     'description': 'EKI development machine ',
@@ -29,7 +29,7 @@ config = {
     'package_data': {'eki_dev': ['*.yaml']},
     #'entry_point': {'console_scripts': ['bin.dev_machine']},
     'scripts': [  
-        'bin/dev_machine',
+        'bin/edamame',
     ],
 }
 

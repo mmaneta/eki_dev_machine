@@ -1,3 +1,4 @@
+import copy
 import os.path
 import json
 from pathlib import Path
@@ -19,8 +20,27 @@ from eki_dev.utils import (
     add_instance_tags,
     get_project_tags,
     Config,
-    generate_makefile
+    generate_makefile,
+    update_dict
 )
+
+
+def test_update_dict(mocker):
+    user_conf = {}
+    m = mocker.patch('importlib_resources.files')
+    m.return_value = Path('.')
+    config = Config()
+
+    conf = copy.deepcopy(config.conf)
+
+    random_string = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+    user_conf["Ec2Instance"] = {"Properties": {"KeyName": random_string}}
+
+    assert conf["Ec2Instance"]["Properties"]["KeyName"] != random_string
+
+    update_dict(conf, user_conf)
+
+    assert conf["Ec2Instance"]["Properties"]["KeyName"] == random_string
 
 
 def test_generate_makefile():
@@ -42,27 +62,61 @@ class TestConfig:
         config = Config()
 
         assert isinstance(config.conf, dict)
+        assert isinstance(config.user_conf, dict)
+
+    def test_retrieve_config(self, mocker):
+        m = mocker.patch('importlib_resources.files')
+        m.return_value = Path('.')
+        config = Config('.')
+        dct_conf = config.retrieve_configuration()
+
+        assert dct_conf is not config.conf
+        assert dct_conf["Ec2Instance"]["Properties"]["KeyName"] != config.conf["Ec2Instance"]["Properties"][
+            "KeyName"]
+        assert dct_conf["Ec2Instance"]["Properties"]["KeyName"] == config.user_conf["Ec2Instance"]["Properties"]["KeyName"]
 
     def test_write_config(self, mocker):
-      #  m = mocker.patch('importlib_resources.files')
-      #  m.return_value = Path('.')
-        config = Config()
+        m = mocker.patch('importlib_resources.files')
+        m.return_value = Path('.')
+        config = Config(path_config_dir='.')
         random_string = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
-        config.update_ssh_key_name(random_string)
+        config.conf["Ec2Instance"]["Properties"]["KeyName"] = random_string
         config.write_configuration()
 
-        config2 = Config()
+        config2 = Config(path_config_dir='.')
         assert config2.conf["Ec2Instance"]["Properties"]['KeyName'] == random_string
+        try:
+            os.remove('config')
+        except FileNotFoundError:
+            pass
 
+    def test_write_user_config(self, mocker):
+        m = mocker.patch('importlib_resources.files')
+        m.return_value = Path('.')
+        config = Config(path_config_dir='.')
+        random_string = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+        config.update_ssh_key_name(random_string)
+        config.write_user_configuration()
+
+        config2 = Config(path_config_dir='.')
+        assert config2.user_conf["Ec2Instance"]["Properties"]['KeyName'] == random_string
+        try:
+            os.remove('config')
+        except FileNotFoundError:
+            pass
 
     @mock_aws
     def test_create_ssh_keys(self, mocker):
         m = mocker.patch('importlib_resources.files')
         m.return_value = Path('.')
-        Config().create_ssh_keys("test_key")
+        path_config_dir = '.'
+        Config(path_config_dir=path_config_dir).create_ssh_keys("test_key")
 
-        assert os.path.exists(os.path.expanduser('~/.ssh/test_key'))
-        os.remove(os.path.expanduser('~/.ssh/test_key'))
+        assert os.path.exists(os.path.expanduser('~/.ssh/test_key.pem'))
+
+        assert Config(path_config_dir=path_config_dir).user_conf["Ec2Instance"]["Properties"]['KeyName'] == "test_key"
+        os.remove(os.path.expanduser('~/.ssh/test_key.pem'))
+        os.remove('config')
 
 @mock_aws
 def test_get_project_tags(bucket_with_project_tags):

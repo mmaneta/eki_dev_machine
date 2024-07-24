@@ -1,4 +1,5 @@
 import os
+import copy
 import subprocess
 from rich.pretty import pprint
 from pathlib import Path
@@ -19,22 +20,50 @@ def generate_makefile(image_name : str,
     return tmpl
 
 
+def update_dict(dct, dct_w_updates):
+    for k, v in dct_w_updates.items():
+        if isinstance(dct[k], dict):
+            update_dict(dct[k], v)
+        else:
+            dct[k] = v
+
+
 class Config:
-    def __init__(self):
-        self.conf = self.retrieve_configuration()
+    def __init__(self, path_config_dir='~/.dev_machine'):
+        self.conf = self.retrieve_application_configuration()
+        self.user_conf = self.retrieve_user_configuration(path_config_dir=path_config_dir)
+        self.path_config_dir = path_config_dir
 
     @staticmethod
-    def retrieve_configuration():
+    def retrieve_application_configuration():
         ref = importlib_resources.files('eki_dev') / 'default_conf.yaml'
         with importlib_resources.as_file(ref) as data_path:
             with open(data_path, "r", encoding='utf8') as f:
                 conf = yaml.load(f, Loader=yaml.FullLoader)
         return conf
 
+    @staticmethod
+    def retrieve_user_configuration(path_config_dir='~/.dev_machine'):
+        path_user_config = os.path.expanduser(path_config_dir)
+        fn_config = os.path.join(path_user_config, "config")
+        try:
+            with open(fn_config, "r", encoding='utf8') as f:
+                conf = yaml.load(f, Loader=yaml.FullLoader)
+        except FileNotFoundError:
+            conf = {"Ec2Instance": {"Properties": {"KeyName": "id_rsa"}}}
+
+        return conf
+
+    def retrieve_configuration(self):
+        conf = copy.deepcopy(self.conf)
+        update_dict(conf, self.user_conf)
+        return conf
+
+
     def update_ssh_key_name(self, key_name: str):
         print(f"Updating ssh key name to {key_name}")
         d = {"KeyName": key_name}
-        self.conf["Ec2Instance"]["Properties"].update(d)
+        self.user_conf["Ec2Instance"]["Properties"].update(d)
         return self
 
     def write_configuration(self):
@@ -42,6 +71,11 @@ class Config:
         with importlib_resources.as_file(ref) as data_path:
             with open(data_path, "w", encoding='utf8') as f:
                 yaml.dump(self.conf, f)
+
+    def write_user_configuration(self):
+        fn_config = os.path.join(self.path_config_dir, "config")
+        with open(fn_config, "w", encoding='utf8') as f:
+            yaml.dump(self.user_conf, f)
 
     def create_ssh_keys(self,
                         name: str,
@@ -64,10 +98,13 @@ class Config:
             f.write(private_key)
             os.chmod(os.path.join(path_ssh_config,namepem), 0o600)
 
-        print(f'Key pair {name} created and private key save to {os.path.join(path_ssh_config,namepem)}.')
+        print(f'Key pair {name} created and private key saved to {os.path.join(path_ssh_config,namepem)}.')
+
+        #self.user_conf["Ec2Instance"]["Properties"]['KeyName'] = name
 
         print(f'Updating EKI Dev Machine ssh key name to {name}')
-        self.update_ssh_key_name(name).write_configuration()
+        self.update_ssh_key_name(name).write_user_configuration()
+        #self.update_ssh_key_name(name).write_configuration()
 
         print(f"\nPlease, make this ssh key pair {name} the default by")
         print(f"adding the lines ")
@@ -78,8 +115,20 @@ class Config:
         print(f"to your {path_ssh_config}/config file ")
 
     def user_input_configuration(self):
-        ssh_key_name = input("Enter ssh key name: ")
-        self.create_ssh_keys(ssh_key_name)
+        yn = input("\nWould you like to create a new ssh key? (y/n)")
+        if yn == 'y':
+            ssh_key_name = input("Enter new ssh key name: ")
+            self.create_ssh_keys(ssh_key_name)
+        elif yn == 'n':
+            ssh_key_name = input("\nEnter existing ssh key name: ")
+            print(f'Updating EKI Dev Machine ssh key name to {ssh_key_name}')
+            self.update_ssh_key_name(ssh_key_name).write_user_configuration(path_config_dir=self.path_config_dir)
+        else:
+            print("Please enter either 'y' or 'n'")
+
+
+
+
 
 
 # Show task progress (red for download, green for extract)

@@ -10,7 +10,7 @@ Ec2Instance:
     ImageId: ami-05c969369880fa2c2
     InstanceInitiatedShutdownBehavior: terminate
     InstanceType: t2.micro
-    KeyName: test_key
+    KeyName: SDGOWG70I4
     NetworkInterfaces:
     - AssociatePublicIpAddress: true
       DeviceIndex: 0
