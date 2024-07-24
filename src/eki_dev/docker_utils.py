@@ -45,8 +45,8 @@ def login_into_ecr(registry):
                 break
             time.sleep(1)
         except docker.errors.APIError as e:
-            print(e)
-            logger.error(e)
+            continue
+
 
     return docker_client
 
