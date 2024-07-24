@@ -122,7 +122,7 @@ class Config:
         elif yn == 'n':
             ssh_key_name = input("\nEnter existing ssh key name: ")
             print(f'Updating EKI Dev Machine ssh key name to {ssh_key_name}')
-            self.update_ssh_key_name(ssh_key_name).write_user_configuration(path_config_dir=self.path_config_dir)
+            self.update_ssh_key_name(ssh_key_name).write_user_configuration()
         else:
             print("Please enter either 'y' or 'n'")
 
