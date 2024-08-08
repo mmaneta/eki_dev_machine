@@ -26,7 +26,6 @@ def main(args):
         case "configure":
             Config().user_input_configuration()
         case "blank":
-            res = None
             dev_m.clean_dangling_contexts()
             d = {"InstanceType": str(args.instance_type)}
             conf["Ec2Instance"]["Properties"].update(d)

@@ -246,7 +246,7 @@ build:
 \tDOCKER_BUILDKIT=1 && export DOCKER_BUILDKIT
 \tdocker build -f Dockerfile -t $(IMAGE):$(TAG) . 
 
-run: build
+run:
 \t@docker run --rm -it -v .:/home/eki --platform linux/amd64 $(IMAGE):$(TAG)
 
 run_aws: build
@@ -264,9 +264,6 @@ pull_aws: check-tag
     
 jupyter-lab:
 \t@docker run --rm -it -v .:/home/eki -p 8888:8888 -p 8889:8889 -u 0 $(REPO):$(TAG) jupyter-lab --no-browser --ip=0.0.0.0 --allow-root
-
-jupyter-lab_aws:
-\t@docker run --rm -it -v /home/ubuntu/efs:/home/eki -p 8888:8888 -p 8889:8889 -u 0 $(REPO):$(TAG) jupyter-lab --no-browser --ip=0.0.0.0 --allow-root
 
 .PHONY:	build run run_aws push_aws pull_aws jupyter-lab check-tag
 
