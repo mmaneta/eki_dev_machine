@@ -161,7 +161,25 @@ def get_project_tags(bucket='eki-dev-machine-config'):
 
 def add_instance_tags(project_tag,
                       **instance_params):
-    # add user and project tags
+    # add user user id, and project tags
+    # retrieve user name
+    iam_service = AwsService.from_service('iam')
+    user_name = iam_service.client.get_user()['User']['UserName']
+    tag = {
+        'Key': 'user',
+        'Value': user_name
+    }
+    # remove pre-existing user tag and append new tag
+    [instance_params['TagSpecifications'][0]['Tags'].remove(t) for t in instance_params['TagSpecifications'][0]['Tags'] if t['Key']=='user']
+    instance_params['TagSpecifications'][0]['Tags'].append(tag)
+
+    user_id = iam_service.client.get_user()['User']['UserId']
+    tag = {
+        'Key': 'user_id',
+        'Value': user_id
+    }
+    instance_params['TagSpecifications'][0]['Tags'].append(tag)
+
     tag = {
                     'Key': 'project',
                     'Value': project_tag

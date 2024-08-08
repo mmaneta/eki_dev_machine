@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import os
 import sys
 import argparse
 import importlib_resources
@@ -26,13 +26,22 @@ def main(args):
         case "configure":
             Config().user_input_configuration()
         case "blank":
+            res = None
             dev_m.clean_dangling_contexts()
             d = {"InstanceType": str(args.instance_type)}
             conf["Ec2Instance"]["Properties"].update(d)
             name = str(args.name)
-            res = dev_m.create_ec2_instance(name=name,
-                                    project_tag=str(args.tag),
-                                    **conf["Ec2Instance"]["Properties"])
+            try:
+                res = dev_m.create_ec2_instance(name=name,
+                                        project_tag=str(args.tag),
+                                        **conf["Ec2Instance"]["Properties"])
+            except (Exception, KeyboardInterrupt) as e:
+                print("Creation process failed. CLEANING UP INSTANCE...")
+                if res is not None:
+                    dev_m.terminate_instance(res.id)
+                print(e)
+
+            print(res)
         case "explorer-machine":
             dev_m.clean_dangling_contexts()
             d = {"InstanceType": str(args.instance_type)}
@@ -99,12 +108,7 @@ if __name__ == "__main__":
     try:
         main(args)
     except (Exception, KeyboardInterrupt) as e:
-        print("CLEANING UP INSTANCE...")
+        print("An unexpected exception occurred training to create the requested resources...")
         print(e)
-        name = args.name
-        # assumes list of instances are in order of creation, last instance will be removed
-        last_inst = [i for i in dev_m._get_lst_instances().iterator()][-1]
-        last_inst.load()
-
-        print("terminating instance id {}".format(last_inst.id))
-        dev_m.terminate_instance(last_inst.id)
+        print("If this error occurred after the instance of created, it may still be running")
+        print("Please list all running instances and remove any that are not fully registered")

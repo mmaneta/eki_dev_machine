@@ -45,6 +45,7 @@ def create_ec2_instance(name: str,
         ClientError: If instance creation fails.
     """
 
+    instance = None
     lst_tags = get_project_tags()
     if project_tag in lst_tags:
         instance_params = add_instance_tags(project_tag, **instance_params)
@@ -79,17 +80,15 @@ def create_ec2_instance(name: str,
         docker_ctxt = create_docker_context(name,
                                                 host=host_ip)
 
-    except ClientError as err:
-        print(
-            "Couldn't create instance with image , instance type , and key . "
-            "Here's why: %s: %s",
-            # instaimage.id,
-            # instance_type,
-            # key_pair.name,
-            err.response["Error"]["Code"],
-            err.response["Error"]["Message"],
-        )
-        raise
+    except (ClientError, Exception, KeyboardInterrupt) as e:
+        print("Error creating or provisioning the instance request. Here is why:")
+        print(e)
+        if (instance is not None) & (instance.state not in ["shutting-down", "terminated"]):
+            print(f"instance {instance.id} was created and in state {instance.state}")
+            print("Terminating instance")
+            terminate_instance(instance.id)
+            raise
+
     else:
         _display(instance)
         register_instance(name, host_ip)
@@ -284,7 +283,7 @@ def _display(instance, indent=1):
             err.response["Error"]["Code"],
             err.response["Error"]["Message"],
         )
-        raise
+        raise err
 
 
 def terminate_instance(instance_id: str = None) -> None:

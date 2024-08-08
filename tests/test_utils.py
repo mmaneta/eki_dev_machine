@@ -122,14 +122,16 @@ class TestConfig:
 def test_get_project_tags(bucket_with_project_tags):
     assert get_project_tags(bucket='eki-dev-machine-config') == ['dev', 'eki_training', 'test_project']
 
-
+@mock_aws
 def test_add_instance_tags(ec2_config):
     instance_attrs = json.loads(ec2_config)["Ec2Instance"]["Properties"]
     instance_attrs = add_instance_tags('test_project', **instance_attrs)
 
     assert instance_attrs['TagSpecifications'][0] ['ResourceType'] == 'instance'
     assert instance_attrs['TagSpecifications'][0]['Tags'][0]['Key'] == 'user'
-    assert instance_attrs['TagSpecifications'][0]['Tags'][1]['Key'] == 'project'
+    assert instance_attrs['TagSpecifications'][0]['Tags'][1]['Key'] == ('user_id'
+                                                                        '')
+    assert instance_attrs['TagSpecifications'][0]['Tags'][2]['Key'] == 'project'
 
 
 def test_register_deregister_instance():
