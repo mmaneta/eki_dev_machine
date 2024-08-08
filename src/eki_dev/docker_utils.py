@@ -64,10 +64,10 @@ def create_docker_context(instance_name: str,
     except docker.errors.ContextAlreadyExists as err:
         print("Context name already exists")
         print(err)
-        raise
+        raise err
     except docker.errors.ContextException as err:
         print(err)
-        raise
+        raise err
 
     return ret
 
