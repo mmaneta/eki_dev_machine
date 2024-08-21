@@ -1,0 +1,13 @@
+setup.py
+bin/dev_machine.py
+dev_machine.egg-info/PKG-INFO
+dev_machine.egg-info/SOURCES.txt
+dev_machine.egg-info/dependency_links.txt
+dev_machine.egg-info/requires.txt
+dev_machine.egg-info/top_level.txt
+src/aws_cluster/__init__.py
+src/aws_cluster/ec2_fleets.py
+src/eki_dev/__init__.py
+src/eki_dev/default_conf.yaml
+src/eki_dev/dev_machine.py
+tests/test_dev_machine.py

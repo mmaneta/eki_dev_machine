@@ -1,0 +1,5 @@
+pyyaml
+botocore
+boto3
+rich
+docker-py

@@ -1,0 +1,35 @@
+Ec2Instance:
+  Type: AWS::EC2::Instance
+  Properties:
+    BlockDeviceMappings:
+    - DeviceName: /dev/sda1
+      Ebs:
+        DeleteOnTermination: true
+        Encrypted: false
+        VolumeSize: 25
+        VolumeType: gp3
+    ImageId: ami-05c969369880fa2c2
+    InstanceInitiatedShutdownBehavior: terminate
+    InstanceType: t2.micro
+    KeyName: id_rsa
+    NetworkInterfaces:
+    - AssociatePublicIpAddress: true
+      DeviceIndex: 0
+      Groups:
+      - sg-03827df3d87ad093a
+      SubnetId: subnet-03273ac6cfdbc7db0
+    TagSpecifications:
+    - ResourceType: instance
+      Tags:
+      - Key: user
+        Value: default
+    UserData: |-
+      #!/bin/sh
+      sudo apt-get update -y
+      sudo apt-get -y install docker.io
+      sudo service docker start
+      sudo usermod -a -G docker ubuntu
+      sudo apt-get -y install nfs-common nfs-kernel-server awscli
+      sudo systemctl start nfs-kernel-server.service
+      sudo mkdir /home/ubuntu/efs
+      sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport fs-034c06bfe2c81394b.efs.us-west-1.amazonaws.com:/ /home/ubuntu/efs

@@ -1,0 +1,108 @@
+#!/usr/bin/env python
+import os
+import sys
+import argparse
+import importlib_resources
+import yaml
+
+
+import eki_dev.dev_machine as dev_m
+from eki_dev import banner
+from eki_dev.utils import generate_makefile, Config
+
+# Load configuration
+conf = Config().retrieve_configuration()
+
+
+def main(args):
+
+    match args.command:
+        case "list":
+            dev_m.list_instances()
+        case "remove":
+            dev_m.terminate_instance(args.instance_id)
+        case "generate-makefile":
+            generate_makefile(args.image_name, args.repo_name)
+        case "configure":
+            Config().user_input_configuration()
+        case "blank":
+            dev_m.clean_dangling_contexts()
+            d = {"InstanceType": str(args.instance_type)}
+            conf["Ec2Instance"]["Properties"].update(d)
+            name = str(args.name)
+
+            res = dev_m.create_ec2_instance(name=name,
+                                        project_tag=str(args.tag),
+                                        **conf["Ec2Instance"]["Properties"])
+
+        case "explorer-machine":
+            dev_m.clean_dangling_contexts()
+            d = {"InstanceType": str(args.instance_type)}
+            conf["Ec2Instance"]["Properties"].update(d)
+            name = str(args.name)
+            i = dev_m.create_instance_pull_start_server(name=name,
+                                                        project_tag=str(args.tag),
+                                                        **conf["Ec2Instance"]["Properties"])
+
+
+if __name__ == "__main__":
+    print(banner)
+
+    parser = argparse.ArgumentParser(prog="dev_machine", 
+                                     description="Development Machine provisioner for EKI Environment and Water")
+    subparsers = parser.add_subparsers(dest="command")
+
+    subparser_blank = subparsers.add_parser(
+        name="blank", help="Create a blank EC2 instance"
+    )
+    subparser_blank.add_argument(
+        "--name", "-n", type=str, help="instance name", default="blank_machine"
+    )
+    subparser_blank.add_argument(
+        "--instance_type", "-i", type=str, help="instance type", default="t2.micro"
+    )
+
+    subparser_blank.add_argument(
+        "--tag", "-t", type=str, help="project identification tag"
+    )
+
+    subparser_list = subparsers.add_parser(name="list", help="List running instances")
+
+    subparser_remove = subparsers.add_parser(
+        name="remove", help="Terminate running instance"
+    )
+    subparser_remove.add_argument("instance_id", type=str, help="instance id")
+
+    subparser_model_machine = subparsers.add_parser(name="explorer-machine", help="Create a data explorer machine")
+    subparser_model_machine.add_argument(
+        "--name", "-n", type=str, help="instance name", default="blank_machine")
+    subparser_model_machine.add_argument(
+        "--tag", "-t", type=str, help="project identification tag"
+    )
+    subparser_model_machine.add_argument(
+        "--instance_type", "-i", type=str, help="instance type", default="t2.micro"
+    )
+
+    subparser_generate_makefile = subparsers.add_parser(name="generate-makefile", help="Generates a Makefile Template")
+    subparser_generate_makefile.add_argument("--image-name", type=str, help="Docker image name", default=None)
+    subparser_generate_makefile.add_argument("--repo-name", type=str, help="ECR repo name", default=None)
+
+    subparser_configure = subparsers.add_parser(
+        name="configure", help="Configure the EKI Dev Machine"
+    )
+
+    #subparser_configure.add_argument()
+
+    if len(sys.argv)==1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
+    args = parser.parse_args()
+    try:
+        main(args)
+    except (Exception, KeyboardInterrupt) as e:
+        print("An unexpected exception occurred training to create the requested resources...")
+        print(e)
+        print("If this error occurred after the instance of created, it may still be running")
+
+        print("Please list all running instances and remove any that are not fully registered")
