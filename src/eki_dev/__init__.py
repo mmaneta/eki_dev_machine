@@ -4,11 +4,11 @@ import os.path
 try:
     _dist = get_distribution('dev_machine')
     # Normalize case for Windows systems
-    dist_loc = os.path.normcase(_dist.location)
-    here = os.path.normcase(__file__)
-    if not here.startswith(os.path.join(dist_loc, 'dev_machine')):
-        # not installed, but there is another version that *is*
-        raise DistributionNotFound
+    # dist_loc = os.path.normcase(_dist.location)
+    # here = os.path.normcase(__file__)
+    # if not here.startswith(os.path.join(dist_loc, 'dev_machine')):
+    #     # not installed, but there is another version that *is*
+    #     raise DistributionNotFound
 except DistributionNotFound:
     __version__ = 'Package version not available'
 else:
