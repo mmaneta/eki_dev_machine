@@ -6,7 +6,7 @@ try:
     # Normalize case for Windows systems
     dist_loc = os.path.normcase(_dist.location)
     here = os.path.normcase(__file__)
-    if not here.startswith(os.path.join(dist_loc, 'dev_machine')):
+    if not here.startswith(os.path.join(dist_loc, 'src')):
         # not installed, but there is another version that *is*
         raise DistributionNotFound
 except DistributionNotFound:

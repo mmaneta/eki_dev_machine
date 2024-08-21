@@ -247,7 +247,7 @@ build:
 \tdocker build -f Dockerfile -t $(IMAGE):$(TAG) . 
 
 run:
-\t@docker run --rm -it -v .:/home/eki --platform linux/amd64 $(IMAGE):$(TAG)
+\t@docker run --rm -it -v .:/home/eki/local_folder --platform linux/amd64 $(IMAGE):$(TAG)
 
 run_aws: build
 \t@docker run --rm -it -v /home/ubuntu/efs:/home/eki/efs --platform linux/amd64 $(IMAGE):$(TAG)
