@@ -1,8 +1,0 @@
-pyyaml
-boto3
-docker
-
-[test]
-pytest
-moto
-black
