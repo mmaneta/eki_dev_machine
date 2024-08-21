@@ -7,7 +7,7 @@ Utilities to launch, provision, and delete aws host servers.
 
 config = {
     'name': 'dev_machine',
-    'version': '0.0.5b',
+    'version': '0.0.5b2',
     'author': 'Marco Maneta',
     'author_email': 'mmaneta@ekiconsult.com',
     'description': 'EKI development machine ',
@@ -17,7 +17,7 @@ config = {
     'download_url': '',
     'include_package_data': True,
     'install_requires': [ # 
-        'pyyaml', 'botocore', 'boto3', 'docker', 'rich', 'paramiko'
+        'importlib_resources', 'pyyaml', 'botocore', 'boto3', 'docker', 'rich', 'paramiko'
     ],
     'extras_require': {
         'test': ['pytest', 'pytest-mock', 'moto', 'black']
