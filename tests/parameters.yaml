@@ -1,0 +1,11 @@
+Parameters:
+  ECSClusterName: PestCluster
+  TaskDefinitionImage: 054507568115.dkr.ecr.us-west-1.amazonaws.com/ww_2024:dev
+  ContainerMemory: 3072
+  ContainerPortPestHP: 4004
+  HostPortPestHP: 4004
+  DesiredNumberAgents: 1
+  PestCaseName: wwgfm_hist_2024
+
+Tags:
+  ProjectTag: ww_2024

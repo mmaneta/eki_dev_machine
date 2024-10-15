@@ -7,7 +7,7 @@ Utilities to launch, provision, and delete aws host servers.
 
 config = {
     'name': 'dev_machine',
-    'version': '0.0.5b2',
+    'version': '0.0.6b2',
     'author': 'Marco Maneta',
     'author_email': 'mmaneta@ekiconsult.com',
     'description': 'EKI development machine ',
@@ -17,7 +17,8 @@ config = {
     'download_url': '',
     'include_package_data': True,
     'install_requires': [ # 
-        'importlib_resources', 'pyyaml', 'botocore', 'boto3', 'docker', 'rich', 'paramiko'
+        'importlib_resources', 'pyyaml', 'botocore', 'boto3', 'docker',
+        'rich', 'paramiko', 's3fs'
     ],
     'extras_require': {
         'test': ['pytest', 'pytest-mock', 'moto', 'black']
@@ -26,7 +27,8 @@ config = {
     'package_dir': {"aws_cluster": "src/aws_cluster",
                     "eki_dev": "src/eki_dev"},
     
-    'package_data': {'eki_dev': ['*.yaml']},
+    'package_data': {'eki_dev': ['*.yaml'],
+                     'aws_cluster': ['pest_cluster.ipynb']},
     #'entry_point': {'console_scripts': ['bin.dev_machine']},
     'scripts': [  
         'bin/edamame',

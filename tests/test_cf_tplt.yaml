@@ -1,0 +1,14 @@
+Metadata:
+  TemplateId: arn:aws:cloudformation:us-west-1:054507568115:generatedTemplate/98d198c2-9fe0-4f64-9d73-bf2152c10b15
+AWSTemplateFormatVersion: '2010-09-09'
+Description: The template used to create an ECS Service from the ECS Console.
+Resources:
+  EIP:
+    Type: AWS::EC2::EIP
+    Properties: {}
+  MyEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-1234567890abcdef0
+      InstanceType: t2.micro
+

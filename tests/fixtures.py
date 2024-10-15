@@ -1,8 +1,11 @@
 import os
 import pytest
 import boto3
+from botocore.stub import Stubber
 import json
 import yaml
+import datetime
+from dateutil.tz import tzutc
 
 from moto import mock_aws
 
@@ -99,3 +102,16 @@ def test_aws_service(aws_credentials):
 @pytest.fixture(scope="function")
 def docker_registry():
     return "123456.dkr.ecr.us-west-1.amazonaws.com"
+
+
+@pytest.fixture(scope="function")
+def stack_resources_status_response(stack_name, scope="function"):
+    with open('test_cf_tplt.yaml') as f:
+        cf_tpl = yaml.safe_load(f.read())
+    cf = boto3.client("cloudformation")
+    response = cf.create_stack(
+        StackName=stack_name,
+        TemplateBody=json.dumps(cf_tpl),
+    )
+    return response
+
