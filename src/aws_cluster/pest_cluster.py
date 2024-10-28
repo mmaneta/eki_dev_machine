@@ -1,9 +1,10 @@
-
+import pandas as pd
 import yaml
 from aws_cluster.cluster_utils import (DEFAULT_PEST_CF_TEMPLATE,
                                        open_yaml,
                                        get_arn_of_target_group,
-                                       get_ip_of_ecs_task)
+                                       get_ip_of_ecs_task,
+                                       get_list_tasks_service)
 
 from eki_dev.aws_service import AwsService
 from logging import getLogger
@@ -13,7 +14,7 @@ logger = getLogger(__name__)
 def create_pest_cluster_stack(fn_config_yaml: str,
                               cf_template: str = DEFAULT_PEST_CF_TEMPLATE):
 
-   config = open_yaml(fn_config_yaml)
+    config = open_yaml(fn_config_yaml)
 
     ECSClusterName = config["Parameters"]["ECSClusterName"]
     TaskDefinitionImage = config["Parameters"]["TaskDefinitionImage"]
@@ -141,12 +142,55 @@ def create_main_task(fn_config_yaml: str,):
 
     task_arn = resp['tasks'][0]['taskArn']
     waiter = ecs.client.get_waiter('tasks_running')
-    waiter.wait(tasks=[task_arn])
-    ecs.client.wait_for_tasks(cluster=ECSClusterName,
-                              tasks=[task_arn])
+    print("Waiting for Main Task to be Created...")
+    waiter.wait(cluster=ECSClusterName,
+                tasks=[task_arn])
+
+    print("Main Task Created. Registering IP in Target Group")
+    main_instance_ip = get_ip_of_ecs_task(cluster_name=ECSClusterName,
+                                          task_arn=task_arn)
+    print("Main Instance IP: {}".format(main_instance_ip))
+    target_group_arn = get_arn_of_target_group("PestClusterInfrastructure")
+
+    elbv_client = AwsService.from_service('elbv2').client
+    elbv_client.register_targets(TargetGroupArn=target_group_arn,
+                                        Targets=[{
+                                            'Id': main_instance_ip,
+                                            'Port': ContainerPortPestHP,
+                                        }])
 
     return resp
 
+
+def list_agent_tasks(fn_config_yaml: str):
+
+    config = open_yaml(fn_config_yaml)
+    ECSClusterName = config["Parameters"]["ECSClusterName"]
+
+    ecs = AwsService.from_service('ecs')
+    service_arns = ecs.client.list_services(cluster="PestCluster")["serviceArns"]
+
+    lst_tasks = get_list_tasks_service(cluster_name=ECSClusterName,
+                                       service_name=service_arns[0])
+    return pd.DataFrame(lst_tasks)
+
+
+def update_number_agents(fn_config_yaml: str,
+                         desired_number_agents: int):
+    ecs = AwsService.from_service('ecs')
+
+    config = open_yaml(fn_config_yaml)
+    ECSClusterName = config["Parameters"]["ECSClusterName"]
+
+    ecs = AwsService.from_service('ecs')
+    service_arns = ecs.client.list_services(cluster="PestCluster")["serviceArns"]
+
+    resp = ecs.client.update_service(
+        cluster=ECSClusterName,
+        service=service_arns[0],
+        desiredCount=desired_number_agents)
+
+    return resp
 
 def terminate_cluster():
     cf = AwsService.from_service('cloudformation')

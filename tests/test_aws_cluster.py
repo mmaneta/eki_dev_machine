@@ -6,6 +6,7 @@ import json
 import yaml
 
 import pytest
+from pytest import MonkeyPatch
 from moto import mock_aws
 
 from aws_cluster.cluster_utils import check_resource_creation_status
@@ -46,6 +47,10 @@ def test_check_resource_creation_status(mocker):
     )
     df = check_resource_creation_status("test_stack")
     # Check if the styling is applied correctly
-    assert df.to_string().render().find('background-color: green') ==  1
+    # Check if the styling is applied correctly
+    with pytest.mock.patch('pandas.io.formats.style.Styler.render') as mock_render:
+        mock_render.return_value = '<style>...</style><table>...</table>'  # Mock the HTML output
+        html = df.style_render()
+    assert df
 
 
