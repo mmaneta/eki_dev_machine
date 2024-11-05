@@ -7,6 +7,8 @@ from aws_cluster.cluster_utils import (DEFAULT_PEST_CF_TEMPLATE,
                                        get_list_tasks_service)
 
 from eki_dev.aws_service import AwsService
+from eki_dev.docker_utils import create_docker_context
+from eki_dev.utils import register_instance
 from logging import getLogger
 logger = getLogger(__name__)
 
@@ -23,6 +25,7 @@ def create_pest_cluster_stack(fn_config_yaml: str,
     HostPortPestHP = config["Parameters"]["HostPortPestHP"]
     DesiredNumberAgents = config["Parameters"]["DesiredNumberAgents"]
     PestCaseName = config["Parameters"]["PestCaseName"]
+    SshKeyName = config["Parameters"]["KeyName"]
 
     ProjectTag = config["Tags"]["ProjectTag"]
 
@@ -58,6 +61,10 @@ def create_pest_cluster_stack(fn_config_yaml: str,
                 {
                     'ParameterKey': 'PestCaseName',
                     'ParameterValue': PestCaseName,
+                },
+                {
+                    'ParameterKey': 'KeyName',
+                    'ParameterValue': SshKeyName,
                 },
 
             ],
@@ -175,9 +182,47 @@ def list_agent_tasks(fn_config_yaml: str):
     return pd.DataFrame(lst_tasks)
 
 
+def add_docker_context_to_main_instance(fn_config_yaml: str,):
+    config = open_yaml(fn_config_yaml)
+    ECSClusterName = config["Parameters"]["ECSClusterName"]
+    PestCaseName = config["Parameters"]["PestCaseName"]
+    TaskDefinitionImage = config["Parameters"]["TaskDefinitionImage"]
+    ContainerPortPestHP = config["Parameters"]["ContainerPortPestHP"]
+    HostPortPestHP = config["Parameters"]["HostPortPestHP"]
+    PestCaseName = config["Parameters"]["PestCaseName"]
+
+    cf = AwsService.from_service('cloudformation')
+    stack_resources = cf.client.describe_stack_resources(StackName="PestCluster")
+    for resource in stack_resources['StackResources']:
+        if resource['ResourceType'] == "AWS::EC2::Instance":
+            ec2_arn = resource['PhysicalResourceId']
+
+    ec2 = AwsService.from_service('ec2')
+    public_ip = ec2.client.describe_instances(
+        InstanceIds=[ec2_arn]
+    )["Reservations"][0]["Instances"][0]["PublicIpAddress"]
+    print(f"Public IP: {public_ip}")
+    print(f"creating docker context with name {PestCaseName}")
+    docker_ctxt = create_docker_context(PestCaseName,
+                                        host=public_ip)
+    register_instance(PestCaseName, public_ip)
+
+    repo_tag = TaskDefinitionImage.split('/')[-1]
+    repo, tag = repo_tag.split(":")
+    print("To initiate the main task and interact with the PEST HP Cluster open a terminal and:")
+    print(f"1. $> edamame generate-makefile --image-name {repo} --repo-name {repo}")
+    print(f"2. $> docker context use {PestCaseName}")
+    print(f"3. $> make TAG={tag} pull_aws")
+    print(f"4. $> docker run -d -v /home/ubuntu/efs:/home/eki/efs "
+          f"-p {ContainerPortPestHP}:{HostPortPestHP} {repo}:{tag} pest_hp {PestCaseName} /h :{HostPortPestHP}")
+
+
+
+
+
+
 def update_number_agents(fn_config_yaml: str,
                          desired_number_agents: int):
-    ecs = AwsService.from_service('ecs')
 
     config = open_yaml(fn_config_yaml)
     ECSClusterName = config["Parameters"]["ECSClusterName"]

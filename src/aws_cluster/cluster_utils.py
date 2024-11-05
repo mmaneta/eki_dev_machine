@@ -24,6 +24,8 @@ status_color_codes ={
     "TERMINATE_COMPLETE":['background-color: green'],
     "TERMINATE_FAILED": ['background-color: red'],
     "TERMINATE_IN_PROGRESS": ['background-color: yellow'],
+    "DELETE_SKIPPED": ['background-color: blue'],
+
 }
 
 
