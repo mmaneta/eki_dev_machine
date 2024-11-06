@@ -65,6 +65,9 @@ def create_ec2_instance(name: str,
         instype = instance_params["InstanceType"]
         keyname = instance_params["KeyName"]
         region = res.client.meta.region_name
+
+        # add roles
+        instance_params["IamInstanceProfile"] = {"Name": "AccessECR"}
         print(f"Attempting to create {instype} instance in region {region}")
         print(f"Creating using {keyname} key")
 

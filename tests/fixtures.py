@@ -81,7 +81,7 @@ def ec2_config():
 def iam_role(aws_credentials):
 
     iam = boto3.client("iam")
-    instance_prof = iam.create_instance_profile(InstanceProfileName="EC2ECRAccess")
+    instance_prof = iam.create_instance_profile(InstanceProfileName="AccessECR")
 
     return instance_prof
 
