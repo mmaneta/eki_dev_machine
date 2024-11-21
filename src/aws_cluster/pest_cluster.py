@@ -192,7 +192,7 @@ def add_docker_context_to_main_instance(fn_config_yaml: str,):
     PestCaseName = config["Parameters"]["PestCaseName"]
 
     cf = AwsService.from_service('cloudformation')
-    stack_resources = cf.client.describe_stack_resources(StackName="PestCluster")
+    stack_resources = cf.client.describe_stack_resources(StackName="PestClusterInfrastructure")
     for resource in stack_resources['StackResources']:
         if resource['ResourceType'] == "AWS::EC2::Instance":
             ec2_arn = resource['PhysicalResourceId']
