@@ -7,12 +7,12 @@ import yaml
 import datetime
 from dateutil.tz import tzutc
 
-from moto import mock_aws
+from moto import mock_aws, batch_simple
 
 from eki_dev.aws_service import AwsService
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture#(scope="function")
 def aws_credentials():
     """
     Fixture to set AWS credentials for testing purposes.
@@ -30,6 +30,15 @@ def aws_credentials():
     os.environ["AWS_SESSION_TOKEN"] = "testing"
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
 
+
+@pytest.fixture
+@mock_aws
+def aws_batch(aws_credentials):
+
+    batch = boto3.client("batch", region_name="us-east-1")
+    batch.create_compute_environment()
+    batch.create_job_queue()
+    yield batch
 
 @pytest.fixture(scope="function")
 def aws_s3(aws_credentials):

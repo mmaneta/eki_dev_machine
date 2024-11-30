@@ -1,0 +1,18 @@
+job_name: test_job
+queue_arn: arn::test_queue_arn
+task_definition_arn: arn::test_task_def
+
+parameters:
+  param1: test_param1
+
+loops:
+  loop1:
+    - 1
+    - 2
+    - 3
+  loop2:
+      - a
+      - b
+
+command_line: >-
+  test_command test {loop1} {loop2} {param1} bash
