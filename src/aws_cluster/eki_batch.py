@@ -58,7 +58,7 @@ class EkiBatch:
             container_overrides = {"command": cmd.split()}
 
             try:
-                self.batch_client.submit_job(jobName=self.job_name,
+               job = self.batch_client.submit_job(jobName=self.job_name,
                                              jobQueue=self.queue,
                                              jobDefinition=self.task_definition,
                                              parameters=self.parameters,
@@ -67,3 +67,5 @@ class EkiBatch:
             except Exception as e:
                 print(e)
                 raise
+
+            return job
