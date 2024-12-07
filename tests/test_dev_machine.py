@@ -15,7 +15,8 @@ from eki_dev.dev_machine import (
     terminate_instance,
     create_instance_pull_start_server,
     _run_jupyter_notebook,
-    clean_dangling_contexts
+    clean_dangling_contexts,
+    list_tags
 )
 
 from fixtures import (
@@ -61,10 +62,8 @@ def test_create_ec2_instance_role(aws_credentials, ec2_config,bucket_with_projec
     assert instance.iam_instance_profile["Arn"] == instance_prof["InstanceProfile"]["Arn"]
 
 
-
-
 @mock_aws
-def test__run_jupyter_notebook(aws_credentials, ec2_config,bucket_with_project_tags, mocker):
+def test__run_jupyter_notebook(aws_credentials, ec2_config,bucket_with_project_tags, mocker, iam_role):
     m = mocker.patch('subprocess.Popen')
     m.return_value.returncode = 0
     m.return_value.communicate.side_effect = [(" ", "command not found"), ("docker v23.test", "127")]
@@ -84,13 +83,12 @@ def test__run_jupyter_notebook(aws_credentials, ec2_config,bucket_with_project_t
                               )
     except Exception as e:
         print(e)
-        pass
-
-    docker.ContextAPI.remove_context('test_instance')
+        docker.ContextAPI.remove_context('test_instance')
+        raise
 
 
 @mock_aws()
-def test_create_instance_pull_start_server(aws_credentials, ec2_config,bucket_with_project_tags, mocker):
+def test_create_instance_pull_start_server(aws_credentials, ec2_config,bucket_with_project_tags, mocker, iam_role):
 
 
     m = mocker.patch('subprocess.Popen')
@@ -102,7 +100,7 @@ def test_create_instance_pull_start_server(aws_credentials, ec2_config,bucket_wi
 
     iam = boto3.client("iam")
     conf = json.loads(ec2_config)["Ec2Instance"]["Properties"]
-    instance_prof = iam.create_instance_profile(InstanceProfileName="AccessECR")
+    #instance_prof = iam.create_instance_profile(InstanceProfileName="AccessECR")
     name = "test_instance"
     instance = create_instance_pull_start_server(name=name,
                                                  project_tag='test_project',
@@ -225,3 +223,7 @@ def test_terminate_instance_incorrect_id(aws_credentials, ec2_config,bucket_with
 def test_terminate_instance_instance_none(aws_credentials, ec2_config,bucket_with_project_tags):
     clean_dangling_contexts()
     assert terminate_instance() is None
+
+@mock_aws
+def test_list_tags(bucket_with_project_tags):
+    list_tags()
