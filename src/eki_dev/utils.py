@@ -12,6 +12,7 @@ from eki_dev.aws_service import AwsService
 def generate_makefile(image_name : str,
                       repo_name : str,
                       makefile_name : str = 'Makefile') -> str:
+    """returns a makefile for the given image name and repo name"""
 
     tmpl = makefile_template.format(image_name, repo_name)
     print(f"Writing Makefile to {makefile_name} with repo {image_name} and image {repo_name}")
@@ -59,6 +60,24 @@ class Config:
         update_dict(conf, self.user_conf)
         return conf
 
+    @staticmethod
+    def update_tags_and_user_data(project_tag, instance_params):
+        """returns a dictionary of instance parameters with updated tags and user data updated with the
+        efs drive corresponding to the tag"""
+
+        dct_tags = get_project_tags()
+        lst_tags = list(dct_tags.keys())
+
+        if project_tag in lst_tags:
+            instance_params = add_instance_tags(project_tag, **instance_params)
+
+            instance_params["UserData"] = instance_params["UserData"].format(dct_tags[project_tag]["efs"])
+
+        else:
+            print(f"tag {project_tag} must be one of {lst_tags}")
+            raise Exception(f"tag {project_tag} must be one of {lst_tags}")
+
+        return instance_params
 
     def update_ssh_key_name(self, key_name: str):
         print(f"Updating ssh key name to {key_name}")
@@ -128,10 +147,6 @@ class Config:
             print("Please enter either 'y' or 'n'")
 
 
-
-
-
-
 # Show task progress (red for download, green for extract)
 def show_progress(line, progress, tasks):
 
@@ -151,12 +166,11 @@ def show_progress(line, progress, tasks):
     progress.update(tasks[id_], completed=line['progressDetail']['current'])
 
 
-def get_project_tags(bucket='eki-dev-machine-config'):
+def get_project_tags(bucket='eki-dev-machine-config') -> dict:
     s3 = AwsService.from_service('s3')
     response = s3.client.get_object(Bucket=bucket, Key='project_tags.txt')
-    data = response['Body'].read()
-    tags = data.decode('utf8').strip().split(',')
-    return tags
+    dct_data = yaml.safe_load(response['Body'].read().decode())
+    return dct_data
 
 
 def add_instance_tags(project_tag,

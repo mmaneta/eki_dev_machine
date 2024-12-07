@@ -16,10 +16,11 @@ from eki_dev.docker_utils import (
     find_context_name_from_instance_ip,
     check_docker_context_does_not_exist,
     login_into_ecr,
-    wait_for_token
+    wait_for_token,
 )
 
 from eki_dev.utils import (
+    Config,
     show_progress,
     ssh_tunnel,
     register_instance,
@@ -46,12 +47,11 @@ def create_ec2_instance(name: str,
     """
 
     instance = None
-    lst_tags = get_project_tags()
-    if project_tag in lst_tags:
-        instance_params = add_instance_tags(project_tag, **instance_params)
-    else:
-        print(f"tag {project_tag} must be one of {lst_tags}")
-        raise Exception(f"tag {project_tag} must be one of {lst_tags}")
+
+    try:
+        instance_params = Config.update_tags_and_user_data(project_tag, instance_params)
+    except Exception as e:
+        raise
 
     try:
         check_docker_context_does_not_exist(name)
@@ -155,6 +155,11 @@ def create_instance_pull_start_server(name: str,
                                       dask_port: int = 8889,
                                       container: str = "data_explorer:prod",
                                       **instance_params):
+
+    try:
+        instance_params = Config.update_tags_and_user_data(project_tag, instance_params)
+    except Exception as e:
+        raise
 
     try:
         check_docker_context_does_not_exist(name)
