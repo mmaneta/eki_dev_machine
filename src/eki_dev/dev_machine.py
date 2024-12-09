@@ -249,7 +249,6 @@ def list_tags():
         print(f"\t Project Bucket: {dct_tags[project_tag]['s3bucket']}")
 
 
-
 def list_instances(indent=1):
     """
     Displays information about all running instances. Returns a list of instances

@@ -65,7 +65,6 @@ if __name__ == "__main__":
         "--tag", "-t", type=str, help="project identification tag"
     )
 
-
     subparser_list = subparsers.add_parser(name="list", help="List running instances")
 
     subparser_remove = subparsers.add_parser(

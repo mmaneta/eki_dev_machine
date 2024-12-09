@@ -168,7 +168,7 @@ def show_progress(line, progress, tasks):
 
 def get_project_tags(bucket='eki-dev-machine-config') -> dict:
     s3 = AwsService.from_service('s3')
-    response = s3.client.get_object(Bucket=bucket, Key='project_tags.txt')
+    response = s3.client.get_object(Bucket=bucket, Key='project_tags_v2.txt')
     dct_data = yaml.safe_load(response['Body'].read().decode())
     return dct_data
 
