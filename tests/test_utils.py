@@ -1,3 +1,4 @@
+import pytest
 import copy
 import os.path
 import json
@@ -118,9 +119,33 @@ class TestConfig:
         os.remove(os.path.expanduser('~/.ssh/test_key.pem'))
         os.remove('config')
 
+    @pytest.mark.parametrize("project_tag, efs_uri", [("dev", "fs-034c06bfe2c81394b.efs.us-west-1.amazonaws.com"),("eki_training", "fs-01234567890123456.efs.us-west-1.amazonaws.com")])
+    def test_update_tags_and_user_data_efs(self, mocker, bucket_with_project_tags, project_tag, efs_uri):
+        m = mocker.patch('importlib_resources.files')
+        m.return_value = Path('.')
+        path_config_dir = '.'
+        conf_obj = Config(path_config_dir=path_config_dir)
+        conf = conf_obj.retrieve_configuration()
+        updated_conf = conf_obj.update_tags_and_user_data(project_tag, conf["Ec2Instance"]["Properties"])
+
+        #check efs is correctly assigned
+        assert efs_uri in updated_conf["UserData"]
+
+    @pytest.mark.parametrize("project_tag", ["dev","eki_training"])
+    def test_update_tags_and_user_data_efs(self, mocker, bucket_with_project_tags, project_tag):
+        m = mocker.patch('importlib_resources.files')
+        m.return_value = Path('.')
+        path_config_dir = '.'
+        conf_obj = Config(path_config_dir=path_config_dir)
+        conf = conf_obj.retrieve_configuration()
+        updated_conf = Config.update_tags_and_user_data(project_tag, conf["Ec2Instance"]["Properties"])
+
+        #check efs is correctly assigned
+        assert updated_conf["TagSpecifications"][0]["Tags"][2]["Value"] == project_tag
+
 @mock_aws
 def test_get_project_tags(bucket_with_project_tags):
-    assert get_project_tags(bucket='eki-dev-machine-config') == ['dev', 'eki_training', 'test_project']
+    assert list(get_project_tags(bucket='eki-dev-machine-config').keys()) == ['dev', 'eki_training', 'test_project']
 
 @mock_aws
 def test_add_instance_tags(ec2_config):

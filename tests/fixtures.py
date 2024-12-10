@@ -7,8 +7,10 @@ import yaml
 
 from moto import mock_aws
 
+from eki_dev.aws_service import AwsService
 
-@pytest.fixture#(scope="function")
+
+@pytest.fixture(scope="function")
 def aws_credentials():
     """
     Fixture to set AWS credentials for testing purposes.
@@ -47,8 +49,29 @@ def create_aws_batch():
 @pytest.fixture#(scope="function")
 def bucket_with_project_tags(aws_s3, create_test_bucket):
     boto3.client("s3").put_object(Bucket="eki-dev-machine-config",
-                                  Body=b'dev,eki_training,test_project',
-                                  Key="project_tags.txt"
+                                  Body=b"dev:\n"
+                                       b"   description:\n"
+                                       b"       default project\n"
+                                       b"   efs:\n"
+                                       b"       fs-034c06bfe2c81394b.efs.us-west-1.amazonaws.com\n"
+                                       b"   s3bucket:\n"
+                                       b"       s3://eki-dev\n"
+                                       b"eki_training:\n"
+                                       b"   description:\n"
+                                       b"       tag for training\n"
+                                       b"   efs:\n"
+                                       b"       fs-01234567890123456.efs.us-west-1.amazonaws.com\n"
+                                       b"   s3bucket:\n"
+                                       b"    s3://eki-training\n"
+                                       b"test_project:\n"
+                                       b"  description:\n"
+                                       b"    another test project\n"
+                                       b"  efs:\n"
+                                       b"    fs-09876543212456677.efs.us-west-1.amazonaws.com\n"
+                                       b"  s3bucket:\n"
+                                       b"    s3://eki-test-project"
+                                  ,
+                                  Key="project_tags_v2.txt"
                                   )
 
 
@@ -77,7 +100,17 @@ def ec2_config():
           Tags:
             - Key: user
               Value: ${aws:username}
-  """
+      UserData: |-
+          #!/bin/sh
+          sudo apt-get update -y
+          sudo apt-get -y install docker.io
+          sudo service docker start
+          sudo usermod -a -G docker ubuntu
+          sudo apt-get -y install nfs-common nfs-kernel-server awscli
+          sudo systemctl start nfs-kernel-server.service
+          sudo mkdir /home/ubuntu/efs
+          sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport {}:/ /home/ubuntu/efs
+      """
     return json.dumps(yaml.safe_load(conf))
 
 
@@ -86,7 +119,7 @@ def ec2_config():
 def iam_role(aws_credentials):
 
     iam = boto3.client("iam")
-    instance_prof = iam.create_instance_profile(InstanceProfileName="EC2ECRAccess")
+    instance_prof = iam.create_instance_profile(InstanceProfileName="AccessECR")
 
     return instance_prof
 
@@ -140,5 +173,4 @@ def stack_resources_status_response(stack_name, scope="function"):
         TemplateBody=json.dumps(cf_tpl),
     )
     return response
-
 

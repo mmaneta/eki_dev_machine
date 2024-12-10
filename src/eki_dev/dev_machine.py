@@ -16,10 +16,11 @@ from eki_dev.docker_utils import (
     find_context_name_from_instance_ip,
     check_docker_context_does_not_exist,
     login_into_ecr,
-    wait_for_token
+    wait_for_token,
 )
 
 from eki_dev.utils import (
+    Config,
     show_progress,
     ssh_tunnel,
     register_instance,
@@ -46,12 +47,11 @@ def create_ec2_instance(name: str,
     """
 
     instance = None
-    lst_tags = get_project_tags()
-    if project_tag in lst_tags:
-        instance_params = add_instance_tags(project_tag, **instance_params)
-    else:
-        print(f"tag {project_tag} must be one of {lst_tags}")
-        raise Exception(f"tag {project_tag} must be one of {lst_tags}")
+
+    try:
+        instance_params = Config.update_tags_and_user_data(project_tag, instance_params)
+    except Exception as e:
+        raise
 
     try:
         check_docker_context_does_not_exist(name)
@@ -74,6 +74,7 @@ def create_ec2_instance(name: str,
         instance = res.resource.create_instances(
             **instance_params, MinCount=1, MaxCount=1
         )[0]
+
         instance.wait_until_running()
 
         instance.reload() # required to update public ip address
@@ -86,7 +87,7 @@ def create_ec2_instance(name: str,
     except (ClientError, Exception, KeyboardInterrupt) as e:
         print("Error creating or provisioning the instance request. Here is why:")
         print(e)
-        if (instance is not None) & (instance.state not in ["shutting-down", "terminated"]):
+        if (instance is not None) and (instance.state not in ["shutting-down", "terminated"]):
             print(f"instance {instance.id} was created and in state {instance.state}")
             print("Terminating instance")
             terminate_instance(instance.id)
@@ -157,6 +158,11 @@ def create_instance_pull_start_server(name: str,
                                       **instance_params):
 
     try:
+        instance_params = Config.update_tags_and_user_data(project_tag, instance_params)
+    except Exception as e:
+        raise
+
+    try:
         check_docker_context_does_not_exist(name)
     except docker.errors.ContextAlreadyExists as e:
         print(f"Context {name} already exists")
@@ -164,37 +170,38 @@ def create_instance_pull_start_server(name: str,
 
     instance_params["IamInstanceProfile"] = {"Name": "AccessECR"}
 
-
     try:
         i = create_ec2_instance(name=name,
                                 project_tag=project_tag,
                                 **instance_params)
-    except Exception as e:
-        print(e)
-        raise
 
-    print("PROVISIONING INSTANCE WITH REQUIRED SERVICES...")
-    aws_account = AwsService.from_service('ec2').get_account_id()
-    aws_region = AwsService.from_service('ec2').get_region()
-    user = "ubuntu"
-    host = i.public_ip_address
-    _run_jupyter_notebook(aws_account,
-                          container_name=container,
-                          host_ip=host,
-                          jupyter_port=jupyter_port,
-                          dask_port=dask_port,
-                          region=aws_region)
+        print("PROVISIONING INSTANCE WITH REQUIRED SERVICES...")
+        aws_account = AwsService.from_service('ec2').get_account_id()
+        aws_region = AwsService.from_service('ec2').get_region()
+        user = "ubuntu"
+        host = i.public_ip_address
+        _run_jupyter_notebook(aws_account,
+                              container_name=container,
+                              host_ip=host,
+                              jupyter_port=jupyter_port,
+                              dask_port=dask_port,
+                              region=aws_region)
 
-    del os.environ["DOCKER_HOST"]
+        del os.environ["DOCKER_HOST"]
 
-    try:
+
         tunnel_cmd = ssh_tunnel(user=user,
                    host=host,
                    jupyter_port=jupyter_port,
                    dask_port=dask_port)
-    except ConnectionError as e:
+    except (ClientError, Exception, KeyboardInterrupt) as e:
+        print("Error creating or provisioning the instance request. Here is why:")
         print(e)
-        pass
+        if (i is not None) & (i.state not in ["shutting-down", "terminated"]):
+            print(f"instance {i.id} was created and in state {i.state}")
+            print("Terminating instance")
+            terminate_instance(i.id)
+            raise
 
     print(f"To reconnect to jupyter server use the following command:\n")
     print(f"\t\t {tunnel_cmd}")
@@ -232,6 +239,16 @@ def clean_dangling_contexts(CONFIG_DIR='.dev_machine') -> []:
     return lst_cleaned_contexts
 
 
+def list_tags():
+    dct_tags = get_project_tags()
+    lst_tags = list(dct_tags.keys())
+
+    for project_tag in lst_tags:
+        print(f"Tag {project_tag}:")
+        print(f"\t Description: {dct_tags[project_tag]['description']}")
+        print(f"\t Project Bucket: {dct_tags[project_tag]['s3bucket']}")
+
+
 def list_instances(indent=1):
     """
     Displays information about all running instances. Returns a list of instances
@@ -240,13 +257,6 @@ def list_instances(indent=1):
     """
 
     lst_instances = _get_lst_instances()
-
-    iam_service = AwsService.from_service('iam') #todo: add filter to list only instances by user
-    user_name = iam_service.client.get_user()['User']['UserName']
-
-    filter=[{"Name": "user", "values": [user_name] }]
-
-    lst_instances = lst_instances.filter(filter=filter)
 
     if lst_instances is None:
         print("No instance to display.")
