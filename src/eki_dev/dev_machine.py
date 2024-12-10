@@ -258,13 +258,6 @@ def list_instances(indent=1):
 
     lst_instances = _get_lst_instances()
 
-    iam_service = AwsService.from_service('iam') #todo: add filter to list only instances by user
-    user_name = iam_service.client.get_user()['User']['UserName']
-
-    filter=[{"Name": "user", "values": [user_name] }]
-
-    lst_instances = lst_instances.filter(filter=filter)
-
     if lst_instances is None:
         print("No instance to display.")
         return

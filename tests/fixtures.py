@@ -67,7 +67,7 @@ def bucket_with_project_tags(aws_s3, create_test_bucket):
                                        b"  s3bucket:\n"
                                        b"    s3://eki-test-project"
                                   ,
-                                  Key="project_tags.txt"
+                                  Key="project_tags_v2.txt"
                                   )
 
 
