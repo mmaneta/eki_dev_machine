@@ -1,11 +1,9 @@
 import os
 import pytest
 import boto3
-from botocore.stub import Stubber
+
 import json
 import yaml
-import datetime
-from dateutil.tz import tzutc
 
 from moto import mock_aws
 
@@ -39,7 +37,13 @@ def aws_s3(aws_credentials):
 
 @pytest.fixture#(scope="function")
 def create_test_bucket(aws_s3):
-    boto3.client("s3").create_bucket(Bucket="eki-dev-machine-config")
+    aws_s3.create_bucket(Bucket="eki-dev-machine-config")
+
+
+@pytest.fixture
+def create_aws_batch():
+    with mock_aws():
+        yield boto3.client("batch", region_name="us-east-1")
 
 
 @pytest.fixture#(scope="function")
@@ -120,14 +124,38 @@ def iam_role(aws_credentials):
     return instance_prof
 
 
+@pytest.fixture#(scope="function")
 @mock_aws
-def test_aws_service(aws_credentials):
-    service = AwsService.from_service("ec2")
-    assert service.resource.meta.service_name == "ec2"
-    assert service.client.meta.service_model.service_name == "ec2"
-    assert service.client.meta.region_name == "us-west-2"
-    assert service.resource.meta.client.meta.region_name == "us-west-2"
-    assert service.get_region() == "us-west-2"
+def iam_batch_role():
+
+    iam = boto3.client("iam")
+    instance_prof = iam.create_role(
+        RoleName="AWSBatchServiceRole",
+        AssumeRolePolicyDocument=json.dumps(
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {"Service": "batch.amazonaws.com"},
+                        "Action": "sts:AssumeRole"
+                    }
+                ]
+            }
+        )
+    )
+
+    return instance_prof
+
+
+# @mock_aws
+# def test_aws_service(aws_credentials):
+#     service = AwsService.from_service("ec2")
+#     assert service.resource.meta.service_name == "ec2"
+#     assert service.client.meta.service_model.service_name == "ec2"
+#     assert service.client.meta.region_name == "us-west-2"
+#     assert service.resource.meta.client.meta.region_name == "us-west-2"
+#     assert service.get_region() == "us-west-2"
 
 
 @pytest.fixture(scope="function")

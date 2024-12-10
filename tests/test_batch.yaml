@@ -1,0 +1,21 @@
+job_name: test_job
+queue_arn: arn:aws:batch:us-east-1:123456789012:job-queue/test_queue_arn
+task_definition_arn: arn:aws:batch:us-east-1:123456789012:job-definition/test_task_def:1
+
+parameters:
+  product_version: "1"
+  dynamic_version: "1"
+  static_version: "1"
+  param1: test_param1
+
+loops:
+  loop1:
+    - 1
+    - 2
+    - 3
+  loop2:
+      - a
+      - b
+
+command_line: >-
+  test_command test {loop1} {loop2} {param1} bash
