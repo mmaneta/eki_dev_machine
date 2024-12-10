@@ -15,7 +15,8 @@ from eki_dev.dev_machine import (
     terminate_instance,
     create_instance_pull_start_server,
     _run_jupyter_notebook,
-    clean_dangling_contexts
+    clean_dangling_contexts,
+    list_tags
 )
 
 from fixtures import (
@@ -23,14 +24,15 @@ from fixtures import (
     ec2_config,
 aws_s3,
 create_test_bucket,
-bucket_with_project_tags
+bucket_with_project_tags,
+iam_role
 )
 
 from eki_dev.utils import register_instance, deregister_instance
 
 # @pytest.mark.parametrize("clean_docker_context", "test_instance")
 @mock_aws
-def test_create_ec2_instance(aws_credentials, ec2_config,bucket_with_project_tags):
+def test_create_ec2_instance(aws_credentials, ec2_config,bucket_with_project_tags, iam_role):
     instance = create_ec2_instance(name='test_instance',
                                    project_tag='dev',
                                    **json.loads(ec2_config)["Ec2Instance"]["Properties"]
@@ -47,10 +49,10 @@ def test_create_ec2_instance(aws_credentials, ec2_config,bucket_with_project_tag
 def test_create_ec2_instance_role(aws_credentials, ec2_config,bucket_with_project_tags):
 
     iam = boto3.client("iam")
-    instance_prof = iam.create_instance_profile(InstanceProfileName="EC2ECRAccess")
+    instance_prof = iam.create_instance_profile(InstanceProfileName="AccessECR")
 
     conf = json.loads(ec2_config)["Ec2Instance"]["Properties"]
-    conf["IamInstanceProfile"] = {"Name": "EC2ECRAccess"}
+    conf["IamInstanceProfile"] = {"Name": "AccessECR"}
     instance = create_ec2_instance(name='test_instance',
                                    project_tag='test_project',
                                    **conf
@@ -60,10 +62,8 @@ def test_create_ec2_instance_role(aws_credentials, ec2_config,bucket_with_projec
     assert instance.iam_instance_profile["Arn"] == instance_prof["InstanceProfile"]["Arn"]
 
 
-
-
 @mock_aws
-def test__run_jupyter_notebook(aws_credentials, ec2_config,bucket_with_project_tags, mocker):
+def test__run_jupyter_notebook(aws_credentials, ec2_config,bucket_with_project_tags, mocker, iam_role):
     m = mocker.patch('subprocess.Popen')
     m.return_value.returncode = 0
     m.return_value.communicate.side_effect = [(" ", "command not found"), ("docker v23.test", "127")]
@@ -83,13 +83,12 @@ def test__run_jupyter_notebook(aws_credentials, ec2_config,bucket_with_project_t
                               )
     except Exception as e:
         print(e)
-        pass
-
-    docker.ContextAPI.remove_context('test_instance')
+        docker.ContextAPI.remove_context('test_instance')
+        raise
 
 
 @mock_aws()
-def test_create_instance_pull_start_server(aws_credentials, ec2_config,bucket_with_project_tags, mocker):
+def test_create_instance_pull_start_server(aws_credentials, ec2_config,bucket_with_project_tags, mocker, iam_role):
 
 
     m = mocker.patch('subprocess.Popen')
@@ -101,7 +100,7 @@ def test_create_instance_pull_start_server(aws_credentials, ec2_config,bucket_wi
 
     iam = boto3.client("iam")
     conf = json.loads(ec2_config)["Ec2Instance"]["Properties"]
-    instance_prof = iam.create_instance_profile(InstanceProfileName="AccessECR")
+    #instance_prof = iam.create_instance_profile(InstanceProfileName="AccessECR")
     name = "test_instance"
     instance = create_instance_pull_start_server(name=name,
                                                  project_tag='test_project',
@@ -111,7 +110,7 @@ def test_create_instance_pull_start_server(aws_credentials, ec2_config,bucket_wi
 
 
 @mock_aws
-def test_list_instances(aws_credentials, ec2_config,bucket_with_project_tags):
+def test_list_instances(aws_credentials, ec2_config,bucket_with_project_tags, iam_role):
     instance = create_ec2_instance(
         name='test_instance_1',
         project_tag='test_project',
@@ -188,7 +187,7 @@ def test_clean_dangling_contexts_instance_running_no_dangling_context(aws_creden
 
 
 @mock_aws
-def test_terminate_instance(aws_credentials, ec2_config,bucket_with_project_tags):
+def test_terminate_instance(aws_credentials, ec2_config,bucket_with_project_tags, iam_role):
     clean_dangling_contexts()
     instance = create_ec2_instance(
         name='test_instance',
@@ -203,7 +202,7 @@ def test_terminate_instance(aws_credentials, ec2_config,bucket_with_project_tags
 
 
 @mock_aws
-def test_terminate_instance_incorrect_id(aws_credentials, ec2_config,bucket_with_project_tags, capsys):
+def test_terminate_instance_incorrect_id(aws_credentials, ec2_config,bucket_with_project_tags, capsys, iam_role):
     clean_dangling_contexts()
     instance = create_ec2_instance(
         name='test_instance',
@@ -224,3 +223,7 @@ def test_terminate_instance_incorrect_id(aws_credentials, ec2_config,bucket_with
 def test_terminate_instance_instance_none(aws_credentials, ec2_config,bucket_with_project_tags):
     clean_dangling_contexts()
     assert terminate_instance() is None
+
+@mock_aws
+def test_list_tags(bucket_with_project_tags):
+    list_tags()

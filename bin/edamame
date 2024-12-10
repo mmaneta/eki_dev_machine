@@ -1,10 +1,7 @@
 #!/usr/bin/env python
-import os
+
 import sys
 import argparse
-import importlib_resources
-import yaml
-
 
 import eki_dev.dev_machine as dev_m
 from eki_dev import banner
@@ -19,6 +16,8 @@ def main(args):
     match args.command:
         case "list":
             dev_m.list_instances()
+        case "list-tags":
+            dev_m.list_tags()
         case "remove":
             dev_m.terminate_instance(args.instance_id)
         case "generate-makefile":
@@ -72,6 +71,8 @@ if __name__ == "__main__":
         name="remove", help="Terminate running instance"
     )
     subparser_remove.add_argument("instance_id", type=str, help="instance id")
+
+    subparser_list_tags = subparsers.add_parser(name="list-tags", help="List available project tags")
 
     subparser_model_machine = subparsers.add_parser(name="explorer-machine", help="Create a data explorer machine")
     subparser_model_machine.add_argument(
