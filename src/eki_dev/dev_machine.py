@@ -158,17 +158,10 @@ def create_instance_pull_start_server(name: str,
                                       **instance_params):
 
     try:
-        instance_params = Config.update_tags_and_user_data(project_tag, instance_params)
-    except Exception as e:
-        raise
-
-    try:
         check_docker_context_does_not_exist(name)
     except docker.errors.ContextAlreadyExists as e:
         print(f"Context {name} already exists")
         raise
-
-    instance_params["IamInstanceProfile"] = {"Name": "AccessECR"}
 
     try:
         i = create_ec2_instance(name=name,
