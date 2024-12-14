@@ -65,16 +65,16 @@ if __name__ == "__main__":
         "--tag", "-t", type=str, help="project identification tag"
     )
 
-    subparser_list = subparsers.add_parser(name="list", help="List running instances")
+    subparser_list = subparsers.add_parser(name="list", aliases=["ls"], help="List running instances")
 
     subparser_remove = subparsers.add_parser(
-        name="remove", help="Terminate running instance"
+        name="remove", aliases=["rm"], help="Terminate running instance"
     )
     subparser_remove.add_argument("instance_id", type=str, help="instance id")
 
     subparser_list_tags = subparsers.add_parser(name="list-tags", help="List available project tags")
 
-    subparser_model_machine = subparsers.add_parser(name="explorer-machine", help="Create a data explorer machine")
+    subparser_model_machine = subparsers.add_parser(name="explorer-machine", aliases=["em"], help="Create a data explorer machine")
     subparser_model_machine.add_argument(
         "--name", "-n", type=str, help="instance name", default="blank_machine")
     subparser_model_machine.add_argument(
@@ -82,6 +82,12 @@ if __name__ == "__main__":
     )
     subparser_model_machine.add_argument(
         "--instance_type", "-i", type=str, help="instance type", default="t2.micro"
+    )
+    subparser_model_machine.add_argument(
+        "--jupyter_port", "-jp", type=int, help="instance type", default="t2.micro"
+    )
+    subparser_model_machine.add_argument(
+        "--dask_port", "-dp", type=int, help="instance type", default="t2.micro"
     )
 
     subparser_generate_makefile = subparsers.add_parser(name="generate-makefile", help="Generates a Makefile Template")
