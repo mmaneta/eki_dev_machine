@@ -10,7 +10,7 @@ Ec2Instance:
     ImageId: ami-05c969369880fa2c2
     InstanceInitiatedShutdownBehavior: terminate
     InstanceType: t2.micro
-    KeyName: 2TGECQQ4NT
+    KeyName: WNSOFNLKE8
     NetworkInterfaces:
     - AssociatePublicIpAddress: true
       DeviceIndex: 0
