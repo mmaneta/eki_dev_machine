@@ -70,7 +70,7 @@ def create_pest_cluster_stack(fn_config_yaml: str,
             ],
             Tags=[
                 {
-                    'Key': 'project_tag',
+                    'Key': 'project',
                     'Value': f"{ProjectTag}"
                 },
                 {
@@ -137,7 +137,7 @@ def create_main_task(fn_config_yaml: str,):
         overrides=overrides,
         tags=[
             {
-                'key': 'project_tag',
+                'key': 'project',
                 'value': f"{ProjectTag}"
             },
             {
