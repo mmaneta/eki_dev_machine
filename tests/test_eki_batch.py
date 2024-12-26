@@ -4,7 +4,14 @@ from moto import mock_aws
 import boto3
 import yaml
 
-from fixtures import aws_s3, aws_credentials, create_aws_batch, iam_batch_role#, aws_batch
+from fixtures import (aws_s3,
+                      aws_credentials,
+                      create_aws_batch,
+                      iam_batch_role,
+                      aws_net,
+                      create_test_bucket,
+                      bucket_with_project_tags#, aws_batch
+                      )
 from aws_cluster import eki_batch
 
 
@@ -46,10 +53,23 @@ class TestEkiBatch:
     def setup_class(cls):
         pass
 
+    def test_allocate_ip(self, bucket_with_project_tags):
+        batch = eki_batch.EkiBatch("s3://eki-dev-machine-config/test_batch.yaml")
+        batch._allocate_elastic_ip()
+
+        assert batch.eip['AllocationId'] is not None
+
+    def test_create_nat(self, bucket_with_project_tags,aws_net, aws_batch):
+        batch = eki_batch.EkiBatch("s3://eki-dev-machine-config/test_batch.yaml")
+        batch.create_nat_gateway(subnet_id=aws_net['Subnet']['SubnetId'])
+
+        assert batch.nat_gateway['NatGateway']['NatGatewayId'] is not None
+
+
     @pytest.mark.parametrize("fn", ["test_batch.yaml", "s3://eki-dev-machine-config/test_batch.yaml"])
     def test_eki_batch(self, fn, aws_bucket):
         batch = eki_batch.EkiBatch(fn)
-        batch.task_definition == "arn::test_task_def"
+        assert batch.task_definition == "arn::test_task_def"
 
     def test__parse_command_line(self, aws_bucket):
         batch = eki_batch.EkiBatch("s3://eki-dev-machine-config/test_batch.yaml")

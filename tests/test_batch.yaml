@@ -1,6 +1,7 @@
 job_name: test_job
 queue_arn: arn:aws:batch:us-east-1:123456789012:job-queue/test_queue_arn
 task_definition_arn: arn:aws:batch:us-east-1:123456789012:job-definition/test_task_def:1
+project_tag: dev
 
 parameters:
   product_version: "1"

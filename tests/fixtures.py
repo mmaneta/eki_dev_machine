@@ -29,6 +29,16 @@ def aws_credentials():
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
 
 
+@pytest.fixture
+def aws_net(aws_credentials):
+    with mock_aws():
+        vpc = AwsService.from_service('ec2').client.create_vpc(CidrBlock='10.0.0.0/16')
+        subnet = AwsService.from_service('ec2').client.create_subnet(
+            VpcId=vpc['Vpc']['VpcId'],
+            CidrBlock='10.0.0.0/16'
+        )
+        return subnet
+
 @pytest.fixture(scope="function")
 def aws_s3(aws_credentials):
     with mock_aws():

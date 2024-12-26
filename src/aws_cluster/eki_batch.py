@@ -1,13 +1,18 @@
 import itertools
 
+from aiohttp import ClientError
+
 from eki_dev.aws_service import AwsService
+from eki_dev.utils import get_project_tags
 from aws_cluster.cluster_utils import (
     open_yaml
 )
 
 
 class EkiBatch:
-    def __init__(self, fn_yaml: str):
+    def __init__(self, fn_yaml: str,
+                 subnet_id: str = "subnet-03273ac6cfdbc7db0" # public subnet for nat gateway
+                 ):
         try:
             self.conf = open_yaml(fn_yaml)
         except FileNotFoundError:
@@ -15,6 +20,7 @@ class EkiBatch:
             raise
 
         self.batch_client = AwsService.from_service('batch').client
+        self.project_tag = self.conf['project_tag']
         self.job_name = self.conf['job_name']
         self.queue = self.conf["queue_arn"]
         self.task_definition = self.conf["task_definition_arn"]
@@ -23,6 +29,91 @@ class EkiBatch:
         self.command_line = self.conf["command_line"]
         self.lst_parsed_cmds = []
         self._parse_command_line()
+
+        self.eip = None
+        self.nat_gateway = None
+        self.route = None
+
+        dct_tags = get_project_tags()
+        lst_tags = list(dct_tags.keys())
+
+        if self.project_tag not in lst_tags:
+            print(f"tag {self.project_tag} must be one of {lst_tags}")
+            raise Exception(f"tag {self.project_tag} must be one of {lst_tags}")
+
+    def _allocate_elastic_ip(self):
+        try:
+            eip_client = AwsService.from_service('ec2').client.allocate_address(
+                Domain='vpc',
+                TagSpecifications = [
+                    {
+                        'ResourceType': 'elastic-ip',
+                        'Tags': [
+                            {
+                                'Key': 'project',
+                                'Value': self.project_tag
+                            },
+                        ]
+                    },
+                ],
+            )
+            self.eip = eip_client
+        except ClientError as e:
+            print(e)
+            raise
+
+    @staticmethod
+    def _create_route(nat_gateway_id: str,
+                      route_table_id: str = "rtb-0a4d4e7bb90a8bf09"):
+        print(f"Creating route to connect private network to {nat_gateway_id}")
+        route = AwsService.from_service('ec2').client.create_route(
+            DestinationCidrBlock='0.0.0.0/0',
+            NatGatewayId=nat_gateway_id,
+            RouteTableId=route_table_id,
+
+        )
+        return route
+
+    def create_nat_gateway(self, subnet_id: str = "subnet-03273ac6cfdbc7db0", # eki cluster public subnet
+                            dry_run: bool = False):
+        ec2_client = AwsService.from_service('ec2').client
+        self._allocate_elastic_ip()
+
+        try:
+            nat_gateway = ec2_client.create_nat_gateway(
+                AllocationId=self.eip['AllocationId'],
+                DryRun=dry_run,
+                SubnetId=subnet_id,
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'natgateway',
+                        'Tags': [
+                            {
+                                'Key': 'project',
+                                'Value': self.project_tag
+                            },
+                        ]
+                    },
+                ],
+            )
+            self.nat_gateway = nat_gateway
+
+            try:
+                waiter = AwsService.from_service('ec2').client.get_waiter('nat_gateway_available')
+                waiter.wait(NatGatewayIds=[nat_gateway['NatGateway']['NatGatewayId']])
+            except Exception as e:
+                print(e)
+                raise
+
+            self.route = self._create_route(nat_gateway['NatGateway']['NatGatewayId'])
+        except ClientError as e:
+            #clean up elastic ip
+            if self.eip is not None:
+                AwsService.from_service('ec2').client.release_address(
+                    AllocationId=self.eip['AllocationId'],
+                )
+            print(e)
+            raise
 
     def _parse_command_line(self):
 
@@ -69,3 +160,35 @@ class EkiBatch:
                 raise
 
             return job
+
+    def clean_up_nat_gateway(self):
+        print("Cleaning up elastic IP and Nat Gateway")
+
+        ec2_client = AwsService.from_service('ec2').client
+
+        print("deleting NAT gateway")
+        if self.nat_gateway is not None:
+            ec2_client.delete_nat_gateway(
+                NatGatewayId=self.nat_gateway['NatGateway']['NatGatewayId']
+            )
+            print("Waiting for deletion to complete")
+            waiter = ec2_client.get_waiter('nat_gateway_deleted')
+            waiter.wait(NatGatewayIds=[self.nat_gateway['NatGateway']['NatGatewayId']])
+            print("Deletion Successful")
+            self.nat_gateway = None
+
+        print("deleting elastic IP")
+        if self.eip is not None:
+            ec2_client.release_address(
+                AllocationId=self.eip['AllocationId'],
+            )
+            self.eip = None
+
+        print("deleting route to NAT")
+        if self.route is not None:
+            ec2_client.delete_route(
+                RouteTableId="rtb-0a4d4e7bb90a8bf09",
+                DestinationCidrBlock = '0.0.0.0/0',
+            )
+
+
