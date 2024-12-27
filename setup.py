@@ -7,7 +7,7 @@ Utilities to launch, provision, and delete aws host servers.
 
 config = {
     'name': 'dev_machine',
-    'version': '0.1.1dev',
+    'version': '0.2.0dev',
     'author': 'Marco Maneta',
     'author_email': 'mmaneta@ekiconsult.com',
     'description': 'EKI development machine ',
