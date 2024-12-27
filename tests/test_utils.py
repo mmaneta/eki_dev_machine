@@ -22,7 +22,8 @@ from eki_dev.utils import (
     get_project_tags,
     Config,
     generate_makefile,
-    update_dict
+    update_dict,
+    check_file_exists_in_s3
 )
 
 
@@ -202,3 +203,7 @@ def test_ssh_splitter_without_user():
 
 def test_ssh_splitter_without_port():
     assert list(ssh_splitter('ssh://1.0.1.1')) == ['', '1.0.1.1', '']
+@mock_aws
+def test_check_file_exists_in_s3(bucket_with_project_tags):
+    assert check_file_exists_in_s3("s3://eki-dev-machine-config/project_tags_v2.txt")
+    assert not check_file_exists_in_s3("s3://eki-dev-machine-config/doesnotexist.txt")

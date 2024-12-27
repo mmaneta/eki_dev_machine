@@ -33,11 +33,12 @@ def aws_credentials():
 def aws_net(aws_credentials):
     with mock_aws():
         vpc = AwsService.from_service('ec2').client.create_vpc(CidrBlock='10.0.0.0/16')
+        route_table = AwsService.from_service('ec2').client.create_route_table(VpcId=vpc['Vpc']['VpcId'])
         subnet = AwsService.from_service('ec2').client.create_subnet(
             VpcId=vpc['Vpc']['VpcId'],
             CidrBlock='10.0.0.0/16'
         )
-        return subnet
+        return subnet, route_table
 
 @pytest.fixture(scope="function")
 def aws_s3(aws_credentials):

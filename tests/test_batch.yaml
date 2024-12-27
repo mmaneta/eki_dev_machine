@@ -18,5 +18,8 @@ loops:
       - a
       - b
 
+success_indicators:
+  - s3://eki-dev-machine-config/{loop2}
+
 command_line: >-
   test_command test {loop1} {loop2} {param1} bash

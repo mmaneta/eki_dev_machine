@@ -1,10 +1,14 @@
 import os
 import copy
 import subprocess
+
+import botocore
 from rich.pretty import pprint
 from pathlib import Path
 import yaml
 import importlib_resources
+
+from urllib.parse import urlparse
 
 from eki_dev.aws_service import AwsService
 
@@ -28,6 +32,19 @@ def update_dict(dct, dct_w_updates):
         else:
             dct[k] = v
 
+
+def check_file_exists_in_s3(s3_url: str) -> bool:
+    s3_resource = AwsService.from_service('s3').resource
+
+    url = urlparse(s3_url)
+    bucket = url.netloc
+    key = url.path[1:]
+
+    try:
+        s3_resource.Object(bucket, key).load()
+        return True
+    except botocore.exceptions.ClientError:
+        return False
 
 class Config:
     def __init__(self, path_config_dir='~/.dev_machine'):
@@ -263,7 +280,7 @@ build:
 run:
 \t@docker run --rm -it -v .:/home/eki/local_folder --platform linux/amd64 $(IMAGE):$(TAG)
 
-run_aws: build
+run_aws:
 \t@docker run --rm -it -v /home/ubuntu/efs:/home/eki/efs --platform linux/amd64 $(IMAGE):$(TAG)
 
 push_aws: check-tag
